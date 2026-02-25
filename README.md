@@ -28,7 +28,7 @@
 </p>
 
 
-**[한국어 문서 (Korean Documentation)](docs/ONYX_KO.md)** | **[한국어 전체 문서 목차 (Full Korean Docs)](docs/ko/README.md)**
+**[한국어 README (Korean)](README.ko.md)** | **[한국어 전체 문서 목차 (Full Korean Docs)](docs/ko/README.md)**
 
 **[Onyx](https://www.onyx.app/?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme)** is a feature-rich, self-hostable Chat UI that works with any LLM. It is easy to deploy and can run in a completely airgapped environment.
 
