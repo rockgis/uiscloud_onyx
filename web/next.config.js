@@ -156,8 +156,10 @@ const sentryWebpackPluginOptions = {
   }),
 };
 
-// Export the module with conditional Sentry configuration
-module.exports = withSentryConfig(
-  withNextIntl(nextConfig),
-  sentryWebpackPluginOptions
-);
+// Export the module with conditional Sentry configuration.
+// Skip withSentryConfig entirely when Sentry is not configured — the Sentry webpack
+// plugin can interfere with @vercel/nft's middleware file tracing required for
+// standalone output (middleware.js.nft.json), causing build failures.
+module.exports = sentryEnabled
+  ? withSentryConfig(withNextIntl(nextConfig), sentryWebpackPluginOptions)
+  : withNextIntl(nextConfig);
