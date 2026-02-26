@@ -1,15 +1,25 @@
 name: UISCloud - Build & Deploy
 
-# Triggers:
-#   - main 브랜치 push: 이미지 빌드 + 자동 배포 (DEPLOY_ENABLED=true 시)
-#   - v*.*.* 태그 push: 이미지 빌드 + 자동 배포
-#   - 수동 실행: 빌드만 or 빌드+배포 선택 가능
+# ── 트리거 전략 ────────────────────────────────────────────────────────────────
+# - main push      → 이미지 빌드만 (스냅샷 보관, 배포 X)
+# - Release 발행   → 이미지 빌드 + 버전 태그 + 프로덕션 자동 배포
+# - 수동 실행      → 특정 이미지 태그를 지정해 즉시 배포 가능
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
+
+  # GitHub Release가 "published" 상태가 되면 실행
+  # (Draft → Published 또는 Pre-release → Published 모두 포함)
+  release:
+    types: [published]
+
   workflow_dispatch:
     inputs:
+      image_tag:
+        description: "배포할 이미지 태그 (예: v1.2.3, latest, sha-abc1234)"
+        type: string
+        required: false
+        default: "latest"
       deploy:
         description: "빌드 후 서버에 바로 배포"
         type: boolean
@@ -18,7 +28,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # ghcr.io/{owner}/{repo}/web-server 형태로 이미지 저장
   WEB_IMAGE: ghcr.io/${{ github.repository }}/web-server
 
 jobs:
@@ -28,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # ghcr.io 이미지 푸시 권한
+      packages: write
 
     outputs:
       image-tag: ${{ steps.meta.outputs.version }}
@@ -38,7 +47,7 @@ jobs:
       - name: 소스코드 체크아웃
         uses: actions/checkout@v4
 
-      - name: Docker Buildx 설정 (멀티플랫폼 빌드 지원)
+      - name: Docker Buildx 설정
         uses: docker/setup-buildx-action@v3
 
       - name: GitHub Container Registry 로그인
@@ -54,15 +63,18 @@ jobs:
         with:
           images: ${{ env.WEB_IMAGE }}
           tags: |
-            # main 브랜치 → :latest
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            # 브랜치명 태그 (예: main → :main)
-            type=ref,event=branch
-            # 버전 태그 (예: v1.2.3 → :1.2.3, :1.2)
+            # ── Release 이벤트 ──────────────────────────────────────────────
+            # v1.2.3 릴리즈 → :1.2.3, :1.2, :1, :latest
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            # 커밋 SHA 태그 (예: :sha-abc1234)
-            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{major}}
+            # Release 발행 시에만 :latest 업데이트
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+
+            # ── main 브랜치 push ─────────────────────────────────────────────
+            # main → :main, :sha-abc1234 (스냅샷용, latest는 업데이트 안 함)
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short,enable=${{ github.event_name == 'push' }}
 
       - name: 웹 서버 이미지 빌드 & 레지스트리에 푸시
         id: build
@@ -73,45 +85,60 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # GitHub Actions 캐시 활용으로 빌드 속도 개선
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             NODE_OPTIONS=--max-old-space-size=4096
+            ONYX_VERSION=${{ github.event.release.tag_name || github.sha }}
 
-      - name: 빌드 결과 요약 출력
+      - name: 빌드 결과 요약
         run: |
           echo "## 빌드 완료 ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
           echo "| 이미지 | \`${{ env.WEB_IMAGE }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| 태그 | \`${{ steps.meta.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 버전 태그 | \`${{ steps.meta.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 트리거 | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| 커밋 | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "| 릴리즈 | [${{ github.event.release.name }}](${{ github.event.release.html_url }}) |" >> $GITHUB_STEP_SUMMARY
+          fi
 
-  # ─── Job 2: 서버 배포 (조건부 실행) ───────────────────────────────────────
-  # 실행 조건: (main/태그 push OR 수동 배포 요청) AND DEPLOY_ENABLED=true
+  # ─── Job 2: 프로덕션 서버 배포 ─────────────────────────────────────────────
+  # 실행 조건:
+  #   - Release가 published 될 때 (자동)
+  #   - workflow_dispatch에서 deploy=true 선택 시 (수동)
   deploy:
     name: 프로덕션 서버 배포
     needs: build-web
     runs-on: ubuntu-latest
     if: |
-      (
-        github.ref == 'refs/heads/main' ||
-        startsWith(github.ref, 'refs/tags/')
-      ) &&
-      (
-        github.event_name == 'push' ||
-        github.event.inputs.deploy == 'true'
-      ) &&
-      vars.DEPLOY_ENABLED == 'true'
+      github.event_name == 'release' ||
+      github.event.inputs.deploy == 'true'
 
-    # GitHub Environments로 배포 승인 및 시크릿 관리
-    # Settings > Environments > production 에서 설정
+    # Settings > Environments > production 에서 보호 규칙 및 시크릿 관리
     environment: production
 
     steps:
       - name: 소스코드 체크아웃
         uses: actions/checkout@v4
+
+      - name: 배포할 이미지 태그 결정
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # Release: 버전 태그 사용 (예: v1.2.3)
+            TAG="${{ github.event.release.tag_name }}"
+          elif [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            # 수동: 입력한 태그 사용
+            TAG="${{ github.event.inputs.image_tag }}"
+          else
+            TAG="latest"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "image=${{ env.WEB_IMAGE }}:${TAG}" >> $GITHUB_OUTPUT
+          echo "배포 이미지: ${{ env.WEB_IMAGE }}:${TAG}"
 
       - name: SSH로 서버 배포 실행
         uses: appleboy/ssh-action@v1
@@ -120,22 +147,35 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: DEPLOY_IMAGE
           script: |
             set -e
             cd ${{ vars.DEPLOY_PATH || '/opt/uiscloud' }}
 
-            echo "📥 최신 설정 파일 가져오는 중..."
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " UISCloud 배포 시작"
+            echo " 이미지: ${DEPLOY_IMAGE}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # 최신 설정 파일 가져오기
             git pull origin main
 
-            echo "🚀 배포 스크립트 실행..."
+            # 특정 버전 이미지로 배포
+            export UISCLOUD_WEB_IMAGE="${DEPLOY_IMAGE}"
             bash deployment/scripts/deploy.sh
+        env:
+          DEPLOY_IMAGE: ${{ steps.image.outputs.image }}
 
       - name: 배포 결과 요약
         if: always()
         run: |
           echo "## 배포 결과" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 배포 이미지 | \`${{ steps.image.outputs.image }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| 서버 | \`${{ secrets.SSH_HOST }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| 이미지 태그 | \`${{ needs.build-web.outputs.image-tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| 배포 시각 | \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 배포 시각 (UTC) | \`$(date -u '+%Y-%m-%d %H:%M:%S')\` |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "| 릴리즈 | [${{ github.event.release.name }}](${{ github.event.release.html_url }}) |" >> $GITHUB_STEP_SUMMARY
+          fi
