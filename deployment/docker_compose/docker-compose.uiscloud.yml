@@ -1,0 +1,38 @@
+name: onyx
+
+# UISCloud 프로덕션 오버라이드
+#
+# 사용법:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.uiscloud.yml up -d
+#
+# 역할:
+#   1. web_server 이미지를 ghcr.io에서 빌드된 커스텀 이미지로 교체
+#      (한국어 i18n, UISCloud 커스터마이징 포함)
+#   2. 내부 서비스 포트 노출 제거 (프로덕션 보안 강화)
+
+services:
+  web_server:
+    # ghcr.io에 푸시된 커스텀 web-server 이미지 사용
+    # CI/CD가 main push마다 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/web-server:latest
+    image: ${UISCLOUD_WEB_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/web-server:latest}
+    # 프로덕션에서는 로컬 빌드 비활성화 (레지스트리 이미지만 사용)
+    build: !reset null
+
+  # ── 프로덕션 보안: 내부 서비스 포트 노출 제거 ─────────────────────────────
+  # nginx만 외부에 노출하고 내부 서비스는 Docker 네트워크 내부에서만 통신
+
+  # Vespa 벡터 DB 포트 제거 (19071, 8081)
+  index:
+    ports: !reset []
+
+  # PostgreSQL 포트 제거 (5432)
+  relational_db:
+    ports: !reset []
+
+  # Redis 포트 제거 (6379)
+  cache:
+    ports: !reset []
+
+  # MinIO 포트 제거 (9000, 9001)
+  minio:
+    ports: !reset []
