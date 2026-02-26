@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, memo } from "react";
+import { useTranslations } from "next-intl";
 import { Project, useProjectsContext } from "@/providers/ProjectsContext";
 import { useDroppable } from "@dnd-kit/core";
 import LineItem from "@/refresh-components/buttons/LineItem";
@@ -31,6 +32,8 @@ export interface ProjectFolderButtonProps {
 }
 
 const ProjectFolderButton = memo(({ project }: ProjectFolderButtonProps) => {
+  const t = useTranslations("sidebar");
+  const tCommon = useTranslations("common");
   const route = useAppRouter();
   const [open, setOpen] = useState(false);
   const [deleteConfirmationModalOpen, setDeleteConfirmationModalOpen] =
@@ -89,7 +92,7 @@ const ProjectFolderButton = memo(({ project }: ProjectFolderButtonProps) => {
       icon={SvgEdit}
       onClick={noProp(() => setIsEditing(true))}
     >
-      Rename Project
+      {t("renameProject")}
     </LineItem>,
     null,
     <LineItem
@@ -98,7 +101,7 @@ const ProjectFolderButton = memo(({ project }: ProjectFolderButtonProps) => {
       onClick={noProp(() => setDeleteConfirmationModalOpen(true))}
       danger
     >
-      Delete Project
+      {t("deleteProject")}
     </LineItem>,
   ];
 
@@ -113,7 +116,7 @@ const ProjectFolderButton = memo(({ project }: ProjectFolderButtonProps) => {
       {/* Confirmation Modal (only for deletion) */}
       {deleteConfirmationModalOpen && (
         <ConfirmationModalLayout
-          title="Delete Project"
+          title={t("deleteProject")}
           icon={SvgTrash}
           onClose={() => setDeleteConfirmationModalOpen(false)}
           submit={
@@ -124,12 +127,11 @@ const ProjectFolderButton = memo(({ project }: ProjectFolderButtonProps) => {
                 deleteProject(project.id);
               }}
             >
-              Delete
+              {tCommon("delete")}
             </Button>
           }
         >
-          Are you sure you want to delete this project? This action cannot be
-          undone.
+          {t("deleteProjectConfirm")}
         </ConfirmationModalLayout>
       )}
 

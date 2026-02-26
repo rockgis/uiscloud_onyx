@@ -72,6 +72,7 @@ import BuildModeIntroContent from "@/app/craft/components/IntroContent";
 import { CRAFT_PATH } from "@/app/craft/v1/constants";
 import { usePostHog } from "posthog-js/react";
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslations } from "next-intl";
 import { Notification, NotificationType } from "@/interfaces/settings";
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import UserAvatarPopover from "@/sections/sidebar/UserAvatarPopover";
@@ -104,6 +105,7 @@ interface RecentsSectionProps {
 }
 
 function RecentsSection({ chatSessions }: RecentsSectionProps) {
+  const t = useTranslations("sidebar");
   const { setNodeRef, isOver } = useDroppable({
     id: DRAG_TYPES.RECENTS,
     data: {
@@ -119,10 +121,10 @@ function RecentsSection({ chatSessions }: RecentsSectionProps) {
         isOver && "bg-background-tint-03"
       )}
     >
-      <SidebarSection title="Recents">
+      <SidebarSection title={t("recents")}>
         {chatSessions.length === 0 ? (
           <Text as="p" text01 className="px-3">
-            Try sending a message! Your chat history will appear here.
+            {t("recentsEmpty")}
           </Text>
         ) : (
           chatSessions.map((chatSession) => (
@@ -145,6 +147,7 @@ interface AppSidebarInnerProps {
 
 const MemoizedAppSidebarInner = memo(
   ({ folded, onFoldClick }: AppSidebarInnerProps) => {
+    const t = useTranslations("sidebar");
     const router = useRouter();
     const combinedSettings = useSettingsContext();
     const posthog = usePostHog();
@@ -450,7 +453,7 @@ const MemoizedAppSidebarInner = memo(
               reset();
             }}
           >
-            New Session
+            {t("newSession")}
           </SidebarTab>
         </div>
       );
@@ -471,7 +474,7 @@ const MemoizedAppSidebarInner = memo(
             href={CRAFT_PATH}
             onClick={() => posthog?.capture("clicked_craft_in_sidebar")}
           >
-            Craft
+            {t("craft")}
           </SidebarTab>
         </div>
       ),
@@ -483,7 +486,7 @@ const MemoizedAppSidebarInner = memo(
         <ChatSearchCommandMenu
           trigger={
             <SidebarTab leftIcon={SvgSearchMenu} folded={folded}>
-              Search Chats
+              {t("searchChats")}
             </SidebarTab>
           }
         />
@@ -504,7 +507,9 @@ const MemoizedAppSidebarInner = memo(
             transient={activeSidebarTab.isMoreAgents()}
             lowlight={!folded}
           >
-            {visibleAgents.length === 0 ? "Explore Agents" : "More Agents"}
+            {visibleAgents.length === 0
+              ? t("exploreAgents")
+              : t("moreAgents")}
           </SidebarTab>
         </div>
       ),
@@ -519,7 +524,7 @@ const MemoizedAppSidebarInner = memo(
           folded={folded}
           lowlight={!folded}
         >
-          New Project
+          {t("newProject")}
         </SidebarTab>
       ),
       [folded, createProjectModal.toggle, createProjectModal.isOpen]
@@ -543,7 +548,7 @@ const MemoizedAppSidebarInner = memo(
               leftIcon={SvgSettings}
               folded={folded}
             >
-              {isAdmin ? "Admin Panel" : "Curator Panel"}
+              {isAdmin ? t("adminPanel") : t("curatorPanel")}
             </SidebarTab>
           )}
           <UserAvatarPopover
@@ -654,7 +659,7 @@ const MemoizedAppSidebarInner = memo(
                   collisionDetection={closestCenter}
                   onDragEnd={handleAgentDragEnd}
                 >
-                  <SidebarSection title="Agents">
+                  <SidebarSection title={t("agents")}>
                     <SortableContext
                       items={visibleAgentIds}
                       strategy={verticalListSortingStrategy}
@@ -682,13 +687,13 @@ const MemoizedAppSidebarInner = memo(
                 >
                   {/* Projects */}
                   <SidebarSection
-                    title="Projects"
+                    title={t("projects")}
                     action={
                       <OpalButton
                         icon={SvgFolderPlus}
                         prominence="tertiary"
                         size="sm"
-                        tooltip="New Project"
+                        tooltip={t("newProject")}
                         onClick={() => createProjectModal.toggle(true)}
                       />
                     }

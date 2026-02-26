@@ -1,5 +1,7 @@
 import "./globals.css";
 
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import {
   fetchEnterpriseSettingsSS,
   fetchSettingsSS,
@@ -70,11 +72,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [combinedSettings, user, authTypeMetadata] = await Promise.all([
-    fetchSettingsSS(),
-    getCurrentUserSS(),
-    getAuthTypeMetadataSS(),
-  ]);
+  const [combinedSettings, user, authTypeMetadata, locale, messages] =
+    await Promise.all([
+      fetchSettingsSS(),
+      getCurrentUserSS(),
+      getAuthTypeMetadataSS(),
+      getLocale(),
+      getMessages(),
+    ]);
 
   const { folded } = await fetchAppSidebarMetadata(user);
 
@@ -83,7 +88,7 @@ export default async function RootLayout({
 
   const getPageContent = async (content: React.ReactNode) => (
     <html
-      lang="en"
+      lang={locale}
       className={`${inter.variable} ${hankenGrotesk.variable}`}
       suppressHydrationWarning
     >
@@ -120,18 +125,20 @@ export default async function RootLayout({
       </head>
 
       <body className={`relative ${inter.variable} font-hanken`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="text-text min-h-screen bg-background">
-            <TooltipProvider>
-              <PHProvider>{content}</PHProvider>
-            </TooltipProvider>
-          </div>
-        </ThemeProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <div className="text-text min-h-screen bg-background">
+              <TooltipProvider>
+                <PHProvider>{content}</PHProvider>
+              </TooltipProvider>
+            </div>
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useSettingsContext } from "@/providers/SettingsProvider";
 import { CgArrowsExpandUpLeft } from "react-icons/cg";
 import Text from "@/refresh-components/texts/Text";
@@ -54,32 +55,34 @@ import {
 import SvgMcp from "@opal/icons/mcp";
 import UserAvatarPopover from "@/sections/sidebar/UserAvatarPopover";
 
-const connectors_items = () => [
+type TFn = (key: string) => string;
+
+const connectors_items = (t: TFn) => [
   {
-    name: "Existing Connectors",
+    name: t("existingConnectors"),
     icon: NotebookIconSkeleton,
     link: "/admin/indexing/status",
   },
   {
-    name: "Add Connector",
+    name: t("addConnector"),
     icon: SvgUploadCloud,
     link: "/admin/add-connector",
   },
 ];
 
-const document_management_items = () => [
+const document_management_items = (t: TFn) => [
   {
-    name: "Document Sets",
+    name: t("documentSets"),
     icon: SvgFolder,
     link: "/admin/documents/sets",
   },
   {
-    name: "Explorer",
+    name: t("explorer"),
     icon: SvgZoomIn,
     link: "/admin/documents/explorer",
   },
   {
-    name: "Feedback",
+    name: t("feedback"),
     icon: SvgThumbsUp,
     link: "/admin/documents/feedback",
   },
@@ -87,11 +90,12 @@ const document_management_items = () => [
 
 const custom_assistants_items = (
   isCurator: boolean,
-  enableEnterprise: boolean
+  enableEnterprise: boolean,
+  t: TFn
 ) => {
   const items = [
     {
-      name: "Assistants",
+      name: t("assistants"),
       icon: SvgOnyxOctagon,
       link: "/admin/assistants",
     },
@@ -100,12 +104,12 @@ const custom_assistants_items = (
   if (!isCurator) {
     items.push(
       {
-        name: "Slack Bots",
+        name: t("slackBots"),
         icon: SlackIconSkeleton,
         link: "/admin/bots",
       },
       {
-        name: "Discord Bots",
+        name: t("discordBots"),
         icon: SvgDiscordMono,
         link: "/admin/discord-bot",
       }
@@ -114,12 +118,12 @@ const custom_assistants_items = (
 
   items.push(
     {
-      name: "MCP Actions",
+      name: t("mcpActions"),
       icon: SvgMcp,
       link: "/admin/actions/mcp",
     },
     {
-      name: "OpenAPI Actions",
+      name: t("openApiActions"),
       icon: SvgActions,
       link: "/admin/actions/open-api",
     }
@@ -127,7 +131,7 @@ const custom_assistants_items = (
 
   if (enableEnterprise) {
     items.push({
-      name: "Standard Answers",
+      name: t("standardAnswers"),
       icon: ClipboardIcon,
       link: "/admin/standard-answer",
     });
@@ -143,7 +147,8 @@ const collections = (
   settings: CombinedSettings | null,
   kgExposed: boolean,
   customAnalyticsEnabled: boolean,
-  hasSubscription: boolean
+  hasSubscription: boolean,
+  t: TFn
 ) => {
   const vectorDbEnabled = settings?.settings.vector_db_enabled !== false;
 
@@ -151,30 +156,30 @@ const collections = (
     ...(vectorDbEnabled
       ? [
           {
-            name: "Connectors",
-            items: connectors_items(),
+            name: t("connectors"),
+            items: connectors_items(t),
           },
         ]
       : []),
     ...(vectorDbEnabled
       ? [
           {
-            name: "Document Management",
-            items: document_management_items(),
+            name: t("documentManagement"),
+            items: document_management_items(t),
           },
         ]
       : []),
     {
-      name: "Custom Assistants",
-      items: custom_assistants_items(isCurator, enableEnterprise),
+      name: t("customAssistants"),
+      items: custom_assistants_items(isCurator, enableEnterprise, t),
     },
     ...(isCurator && enableEnterprise
       ? [
           {
-            name: "User Management",
+            name: t("userManagement"),
             items: [
               {
-                name: "Groups",
+                name: t("groups"),
                 icon: SvgUsers,
                 link: "/admin/groups",
               },
@@ -185,25 +190,25 @@ const collections = (
     ...(!isCurator
       ? [
           {
-            name: "Configuration",
+            name: t("configuration"),
             items: [
               {
-                name: "Chat Preferences",
+                name: t("chatPreferences"),
                 icon: SvgBubbleText,
                 link: "/admin/configuration/chat-preferences",
               },
               {
-                name: "LLM",
+                name: t("llm"),
                 icon: SvgCpu,
                 link: "/admin/configuration/llm",
               },
               {
-                name: "Web Search",
+                name: t("webSearch"),
                 icon: SvgGlobe,
                 link: "/admin/configuration/web-search",
               },
               {
-                name: "Image Generation",
+                name: t("imageGeneration"),
                 icon: SvgImage,
                 link: "/admin/configuration/image-generation",
               },
@@ -211,21 +216,21 @@ const collections = (
                 ? [
                     {
                       error: settings?.settings.needs_reindexing,
-                      name: "Search Settings",
+                      name: t("searchSettings"),
                       icon: SvgSearch,
                       link: "/admin/configuration/search",
                     },
                   ]
                 : []),
               {
-                name: "Document Processing",
+                name: t("documentProcessing"),
                 icon: SvgFileText,
                 link: "/admin/configuration/document-processing",
               },
               ...(kgExposed
                 ? [
                     {
-                      name: "Knowledge Graph",
+                      name: t("knowledgeGraph"),
                       icon: BrainIcon,
                       link: "/admin/kg",
                     },
@@ -234,29 +239,29 @@ const collections = (
             ],
           },
           {
-            name: "User Management",
+            name: t("userManagement"),
             items: [
               {
-                name: "Users",
+                name: t("users"),
                 icon: SvgUser,
                 link: "/admin/users",
               },
               ...(enableEnterprise
                 ? [
                     {
-                      name: "Groups",
+                      name: t("groups"),
                       icon: SvgUsers,
                       link: "/admin/groups",
                     },
                   ]
                 : []),
               {
-                name: "API Keys",
+                name: t("apiKeys"),
                 icon: SvgKey,
                 link: "/admin/api-key",
               },
               {
-                name: "Token Rate Limits",
+                name: t("tokenRateLimits"),
                 icon: SvgShield,
                 link: "/admin/token-rate-limits",
               },
@@ -265,17 +270,17 @@ const collections = (
           ...(enableEnterprise
             ? [
                 {
-                  name: "Performance",
+                  name: t("performance"),
                   items: [
                     {
-                      name: "Usage Statistics",
+                      name: t("usageStatistics"),
                       icon: SvgActivity,
                       link: "/admin/performance/usage",
                     },
                     ...(settings?.settings.query_history_type !== "disabled"
                       ? [
                           {
-                            name: "Query History",
+                            name: t("queryHistory"),
                             icon: SvgServer,
                             link: "/admin/performance/query-history",
                           },
@@ -284,7 +289,7 @@ const collections = (
                     ...(!enableCloud && customAnalyticsEnabled
                       ? [
                           {
-                            name: "Custom Analytics",
+                            name: t("customAnalytics"),
                             icon: SvgBarChart,
                             link: "/admin/performance/custom-analytics",
                           },
@@ -295,12 +300,12 @@ const collections = (
               ]
             : []),
           {
-            name: "Settings",
+            name: t("settings"),
             items: [
               ...(enableEnterprise
                 ? [
                     {
-                      name: "Appearance & Theming",
+                      name: t("appearanceTheming"),
                       icon: SvgPaintBrush,
                       link: "/admin/theme",
                     },
@@ -308,14 +313,14 @@ const collections = (
                 : []),
               // Always show billing/upgrade - community users need access to upgrade
               {
-                name: hasSubscription ? "Plans & Billing" : "Upgrade Plan",
+                name: hasSubscription ? t("plansBilling") : t("upgradePlan"),
                 icon: hasSubscription ? SvgWallet : SvgArrowUpCircle,
                 link: "/admin/billing",
               },
               ...(settings?.settings.opensearch_indexing_enabled
                 ? [
                     {
-                      name: "Document Index Migration",
+                      name: t("documentIndexMigration"),
                       icon: SvgArrowExchange,
                       link: "/admin/document-index-migration",
                     },
@@ -339,6 +344,8 @@ export default function AdminSidebar({
   enableCloudSS,
   enableEnterpriseSS,
 }: AdminSidebarProps) {
+  const t = useTranslations("admin");
+  const tSidebar = useTranslations("sidebar");
   const { kgExposed } = useIsKGExposed();
   const pathname = usePathname();
   const { customAnalyticsEnabled } = useCustomAnalyticsEnabled();
@@ -369,7 +376,8 @@ export default function AdminSidebar({
     settings,
     kgExposed,
     customAnalyticsEnabled,
-    hasSubscription
+    hasSubscription,
+    t as TFn
   );
 
   return (
@@ -383,14 +391,14 @@ export default function AdminSidebar({
             )}
             href="/app"
           >
-            Exit Admin
+            {tSidebar("exitAdmin")}
           </SidebarTab>
         }
         footer={
           <div className="flex flex-col gap-2">
             {settings.webVersion && (
               <Text as="p" text02 secondaryBody className="px-2">
-                {`Onyx version: ${settings.webVersion}`}
+                {tSidebar("onyxVersion", { version: settings.webVersion })}
               </Text>
             )}
             <UserAvatarPopover />
