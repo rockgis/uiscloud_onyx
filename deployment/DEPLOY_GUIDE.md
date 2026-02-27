@@ -74,14 +74,19 @@ sudo mkdir -p /opt/uiscloud
 sudo chown $USER:$USER /opt/uiscloud
 cd /opt/uiscloud
 
-# 최신 릴리즈 다운로드
+# 최신 릴리즈 버전 확인
+LATEST=$(curl -fsSL https://api.github.com/repos/rockgis/uiscloud_onyx/releases/latest \
+  | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+echo "최신 버전: $LATEST"
+
+# 다운로드
 curl -fsSL \
-  https://github.com/rockgis/uiscloud_onyx/releases/latest/download/uiscloud-deployment.tar.gz \
+  "https://github.com/rockgis/uiscloud_onyx/releases/download/${LATEST}/uiscloud-onyx.${LATEST}.tar.gz" \
   | tar xz --strip-components=1
 
-# 특정 버전 지정
+# 특정 버전 지정 (예: v1.2.0)
 curl -fsSL \
-  https://github.com/rockgis/uiscloud_onyx/releases/download/v1.0.0/uiscloud-deployment.tar.gz \
+  https://github.com/rockgis/uiscloud_onyx/releases/download/v1.2.0/uiscloud-onyx.v1.2.0.tar.gz \
   | tar xz --strip-components=1
 
 # 실행 권한 부여
@@ -219,8 +224,10 @@ http://yourdomain.com/admin/configuration/llm
 cd /opt/uiscloud
 
 # 1. 새 릴리즈 패키지 다운로드 (.env는 덮어쓰지 않음)
+LATEST=$(curl -fsSL https://api.github.com/repos/rockgis/uiscloud_onyx/releases/latest \
+  | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
 curl -fsSL \
-  https://github.com/rockgis/uiscloud_onyx/releases/latest/download/uiscloud-deployment.tar.gz \
+  "https://github.com/rockgis/uiscloud_onyx/releases/download/${LATEST}/uiscloud-onyx.${LATEST}.tar.gz" \
   | tar xz --strip-components=1 --skip-old-files
 
 # 2. 배포 (새 이미지 자동 적용)
@@ -356,5 +363,5 @@ https://github.com/rockgis/uiscloud_onyx/releases
 ```
 
 각 릴리즈에는 다음이 포함됩니다:
-- `uiscloud-deployment.tar.gz` — 배포 패키지
+- `uiscloud-onyx.{version}.tar.gz` — 배포 패키지
 - Docker 이미지: `ghcr.io/rockgis/uiscloud_onyx/web-server:{version}`

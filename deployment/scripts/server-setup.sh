@@ -20,7 +20,6 @@ set -euo pipefail
 # ── 기본값 ────────────────────────────────────────────────────────────────────
 REPO="rockgis/uiscloud_onyx"
 RELEASES_URL="https://github.com/${REPO}/releases"
-ASSET_NAME="uiscloud-deployment.tar.gz"
 DEPLOY_DIR="/opt/uiscloud"
 DOMAIN="localhost"
 VERSION="latest"
@@ -121,19 +120,23 @@ download_release() {
   step "배포 패키지 다운로드"
 
   local download_url
+  local asset_name
 
   if [ "$VERSION" = "latest" ]; then
-    download_url="${RELEASES_URL}/latest/download/${ASSET_NAME}"
-    log "최신 릴리즈 다운로드 중..."
-  else
-    download_url="${RELEASES_URL}/download/${VERSION}/${ASSET_NAME}"
-    log "버전 ${VERSION} 다운로드 중..."
+    # 최신 버전 태그 조회
+    VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+      | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+    log "최신 릴리즈 버전: $VERSION"
   fi
+
+  asset_name="uiscloud-onyx.${VERSION}.tar.gz"
+  download_url="${RELEASES_URL}/download/${VERSION}/${asset_name}"
+  log "버전 ${VERSION} 다운로드 중..."
 
   info "URL: $download_url"
 
   local tmp_file
-  tmp_file="$(mktemp /tmp/uiscloud-deployment-XXXXXX.tar.gz)"
+  tmp_file="$(mktemp /tmp/uiscloud-onyx-XXXXXX.tar.gz)"
 
   if ! curl -fsSL -o "$tmp_file" "$download_url"; then
     error "다운로드 실패: $download_url"

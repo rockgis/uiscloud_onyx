@@ -109,7 +109,8 @@ jobs:
       - name: 배포 패키지 생성
         run: |
           VERSION="${{ github.event.release.tag_name }}"
-          PKG_DIR="uiscloud-deployment"
+          PKG_DIR="uiscloud-onyx.${VERSION}"
+          ASSET_FILE="uiscloud-onyx.${VERSION}.tar.gz"
 
           mkdir -p "$PKG_DIR"
 
@@ -131,17 +132,19 @@ jobs:
           sed -i "s|web-server:latest|web-server:${VERSION}|g" "$PKG_DIR/.env.example"
 
           # 아카이브 생성
-          tar czf uiscloud-deployment.tar.gz "$PKG_DIR/"
+          tar czf "$ASSET_FILE" "$PKG_DIR/"
+
+          echo "ASSET_FILE=$ASSET_FILE" >> "$GITHUB_ENV"
 
           echo "### 패키지 내용" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tar tzf uiscloud-deployment.tar.gz >> $GITHUB_STEP_SUMMARY
+          tar tzf "$ASSET_FILE" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: 릴리즈 에셋 업로드
         run: |
           gh release upload "${{ github.event.release.tag_name }}" \
-            uiscloud-deployment.tar.gz \
+            "$ASSET_FILE" \
             --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
