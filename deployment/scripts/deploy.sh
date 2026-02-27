@@ -14,7 +14,15 @@ set -euo pipefail
 
 # ── 경로 설정 ─────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_DIR="$(cd "$SCRIPT_DIR/../docker_compose" && pwd)"
+
+# 스탠드얼론 모드: 릴리즈 패키지 다운로드 후 실행 (compose 파일이 스크립트와 같은 디렉터리)
+# 레포지토리 모드: git clone 후 실행 (compose 파일이 ../docker_compose/)
+if [ -f "$SCRIPT_DIR/docker-compose.prod.yml" ]; then
+  COMPOSE_DIR="$SCRIPT_DIR"
+else
+  COMPOSE_DIR="$(cd "$SCRIPT_DIR/../docker_compose" && pwd)"
+fi
+
 COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.uiscloud.yml"
 
 # ── 색상 출력 ─────────────────────────────────────────────────────────────────

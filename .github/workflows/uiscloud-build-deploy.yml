@@ -93,3 +93,56 @@ jobs:
             echo "| 릴리즈 | [${{ github.event.release.name }}](${{ github.event.release.html_url }}) |" >> $GITHUB_STEP_SUMMARY
           fi
 
+  # ─── Job 2: 배포 패키지 생성 & 릴리즈 첨부 (Release 이벤트 전용) ────────────
+  package-deployment:
+    name: 배포 패키지 생성 & 릴리즈 첨부
+    needs: build-web
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+      - name: 소스코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 배포 패키지 생성
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          PKG_DIR="uiscloud-deployment"
+
+          mkdir -p "$PKG_DIR"
+
+          # Compose 파일
+          cp deployment/docker_compose/docker-compose.prod.yml       "$PKG_DIR/"
+          cp deployment/docker_compose/docker-compose.uiscloud.yml   "$PKG_DIR/"
+
+          # 환경변수 템플릿 (.env.uiscloud.example → .env.example)
+          cp deployment/docker_compose/.env.uiscloud.example         "$PKG_DIR/.env.example"
+
+          # 스크립트
+          cp deployment/scripts/deploy.sh                            "$PKG_DIR/"
+          cp deployment/scripts/server-setup.sh                      "$PKG_DIR/"
+
+          # 가이드
+          cp deployment/DEPLOY_GUIDE.md                              "$PKG_DIR/README.md"
+
+          # .env.example의 이미지 태그를 릴리즈 버전으로 고정
+          sed -i "s|web-server:latest|web-server:${VERSION}|g" "$PKG_DIR/.env.example"
+
+          # 아카이브 생성
+          tar czf uiscloud-deployment.tar.gz "$PKG_DIR/"
+
+          echo "### 패키지 내용" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tar tzf uiscloud-deployment.tar.gz >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: 릴리즈 에셋 업로드
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            uiscloud-deployment.tar.gz \
+            --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
