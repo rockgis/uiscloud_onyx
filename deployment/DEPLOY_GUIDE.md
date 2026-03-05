@@ -7,23 +7,25 @@ UISCloud 배포는 **GitHub Releases**에서 배포 패키지를 다운로드하
 ```
 GitHub Release 발행
     → 이미지 자동 빌드 (ghcr.io)
-    → 배포 패키지 자동 생성 (uiscloud-deployment.tar.gz)
+    → 배포 패키지 자동 생성 (uiscloud-onyx.{VERSION}.tar.gz)
         → 서버에서 패키지 다운로드 → .env 설정 → deploy.sh 실행
 ```
 
 ### 배포 패키지 구성
 
-Release를 발행하면 `uiscloud-deployment.tar.gz` 파일이 자동으로 첨부됩니다.
+Release를 발행하면 `uiscloud-onyx.{VERSION}.tar.gz` 파일이 자동으로 첨부됩니다.
 
 ```
-uiscloud-deployment/
+uiscloud-onyx.{VERSION}/
 ├── docker-compose.prod.yml       # Onyx 프로덕션 서비스 정의
 ├── docker-compose.uiscloud.yml   # UISCloud 웹 이미지 오버라이드
-├── .env.example                  # 환경변수 템플릿
+├── .env.example                  # 환경변수 템플릿 (레포의 .env.uiscloud.example)
 ├── deploy.sh                     # 배포 스크립트
 ├── server-setup.sh               # 서버 초기 설정 스크립트
-└── README.md                     # 이 가이드
+└── README.md                     # 배포 가이드 (이 문서)
 ```
+
+> 패키지 내 `.env.example`은 레포의 `deployment/docker_compose/.env.uiscloud.example`을 복사한 파일이며, 이미지 태그가 해당 릴리즈 버전으로 자동 고정됩니다.
 
 ---
 
@@ -354,7 +356,33 @@ docker image prune -a --filter "until=720h"
 
 ---
 
-## 10. GitHub Releases 확인
+## 10. 프로덕션 보안 구성
+
+`docker-compose.uiscloud.yml`은 프로덕션 환경에서 다음 보안 정책을 자동 적용합니다.
+
+### 외부 노출 포트
+
+| 포트 | 서비스 | 설명 |
+|------|--------|------|
+| 80 | nginx | HTTP (→ HTTPS 리다이렉트) |
+| 443 | nginx | HTTPS (SSL 설정 시) |
+
+### 내부 전용 서비스 (외부 노출 없음)
+
+아래 서비스는 Docker 내부 네트워크에서만 통신하며 외부에서 접근할 수 없습니다.
+
+| 서비스 | 포트 | 설명 |
+|--------|------|------|
+| Vespa (벡터 DB) | 19071, 8081 | 검색 인덱스 |
+| PostgreSQL | 5432 | 관계형 DB |
+| Redis | 6379 | 캐시 |
+| MinIO | 9000, 9001 | 파일 스토리지 |
+
+서버 방화벽에서 **80, 443, 22(SSH)** 포트만 허용하면 됩니다.
+
+---
+
+## 11. GitHub Releases 확인
 
 릴리즈 목록 및 배포 패키지 다운로드:
 
