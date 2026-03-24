@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { Route } from "next";
 import { FullPersona } from "@/app/admin/assistants/interfaces";
 import { useModal } from "@/refresh-components/contexts/ModalContext";
@@ -53,6 +54,7 @@ interface ViewerMCPServerCardProps {
 }
 
 function ViewerMCPServerCard({ server, tools }: ViewerMCPServerCardProps) {
+  const t = useTranslations("agentViewer");
   const [folded, setFolded] = useState(false);
   const serverIcon = getActionIcon(server.server_url, server.name);
 
@@ -71,7 +73,7 @@ function ViewerMCPServerCard({ server, tools }: ViewerMCPServerCardProps) {
                 rightIcon={folded ? SvgExpand : SvgFold}
                 onClick={() => setFolded((prev) => !prev)}
               >
-                {folded ? "Expand" : "Fold"}
+                {folded ? t("expand") : t("fold")}
               </Button>
             }
             center
@@ -178,6 +180,7 @@ export interface AgentViewerModalProps {
   agent: FullPersona;
 }
 export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
+  const t = useTranslations("agentViewer");
   const agentViewerModal = useModal();
   const router = useRouter();
   const { allRecentFiles } = useProjectsContext();
@@ -260,7 +263,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
             {!agent.is_default_persona && (
               <LineItemLayout
                 icon={SvgStar}
-                title="Featured"
+                title={t("featured")}
                 variant="tertiary"
                 width="fit"
               />
@@ -287,7 +290,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
           {/* Knowledge */}
           <Separator noPadding />
           <Section gap={0.5} alignItems="start">
-            <Title title="Knowledge" />
+            <Title title={t("knowledge")} />
             {hasKnowledge ? (
               <Section
                 gap={0.5}
@@ -306,13 +309,13 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
                 })}
               </Section>
             ) : (
-              <EmptyMessage title="No Knowledge" />
+              <EmptyMessage title={t("noKnowledge")} />
             )}
           </Section>
 
           {/* Actions & Tools */}
           <SimpleCollapsible>
-            <SimpleCollapsible.Header title="Actions & Tools" />
+            <SimpleCollapsible.Header title={t("actionsAndTools")} />
             <SimpleCollapsible.Content>
               {hasActions ? (
                 <Section gap={0.5} alignItems="start">
@@ -328,7 +331,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
                   ))}
                 </Section>
               ) : (
-                <EmptyMessage title="No Actions" />
+                <EmptyMessage title={t("noActions")} />
               )}
             </SimpleCollapsible.Content>
           </SimpleCollapsible>
@@ -336,20 +339,20 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
           {/* More Info (Collapsible) */}
           <Separator noPadding />
           <SimpleCollapsible>
-            <SimpleCollapsible.Header title="More Info" />
+            <SimpleCollapsible.Header title={t("moreInfo")} />
             <SimpleCollapsible.Content>
               <Section gap={0.5} alignItems="start">
                 {agent.system_prompt && (
                   <LineItemLayout
-                    title="Instructions"
+                    title={t("instructions")}
                     description={agent.system_prompt}
                     variant="secondary"
                   />
                 )}
                 {defaultModel && (
                   <Horizontal
-                    title="Default Model"
-                    description="This model will be used by Onyx by default in your chats."
+                    title={t("defaultModel")}
+                    description={t("defaultModelDescription")}
                     nonInteractive
                     variant="secondary"
                   >
@@ -358,8 +361,8 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
                 )}
                 {agent.search_start_date && (
                   <Horizontal
-                    title="Knowledge Cutoff Date"
-                    description="Documents with a last-updated date prior to this will be ignored."
+                    title={t("knowledgeCutoffDate")}
+                    description={t("knowledgeCutoffDescription")}
                     nonInteractive
                     variant="secondary"
                   >
@@ -369,7 +372,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
                   </Horizontal>
                 )}
                 <Horizontal
-                  title="Overwrite System Prompts"
+                  title={t("overwriteSystemPrompts")}
                   description='Remove the base system prompt which includes useful instructions (e.g. "You can use Markdown tables"). This may affect response quality.'
                   nonInteractive
                   variant="secondary"
@@ -384,7 +387,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
           {agent.task_prompt && (
             <>
               <Separator noPadding />
-              <Title title="Prompt Reminders" description={agent.task_prompt} />
+              <Title title={t("promptReminders")} description={agent.task_prompt} />
             </>
           )}
 
@@ -392,7 +395,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
           {agent.starter_messages && agent.starter_messages.length > 0 && (
             <>
               <Separator noPadding />
-              <Title title="Conversation Starters" />
+              <Title title={t("conversationStarters")} />
               <div className="grid grid-cols-2 gap-1 w-full">
                 {agent.starter_messages.map((starter, index) => (
                   <Interactive.Base

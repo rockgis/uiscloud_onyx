@@ -14,6 +14,7 @@ import { ErrorCallout } from "@/components/ErrorCallout";
 import { SvgOnyxOctagon } from "@opal/icons";
 import { useState, useEffect } from "react";
 import Pagination from "@/refresh-components/Pagination";
+import { useTranslations } from "next-intl";
 
 const PAGE_SIZE = 20;
 
@@ -30,6 +31,7 @@ function MainContent({
   onPageChange: (page: number) => void;
   refreshPersonas: () => void;
 }) {
+  const t = useTranslations("admin");
   // Filter out default/unified assistants.
   // NOTE: The backend should already exclude them if includeDefault = false is
   // provided. That change was made with the introduction of pagination; we keep
@@ -65,12 +67,12 @@ function MainContent({
 
         <Title>Create an Assistant</Title>
         <CreateButton href="/app/agents/create?admin=true">
-          New Assistant
+          {t("newAssistant")}
         </CreateButton>
 
         <Separator />
 
-        <Title>Existing Assistants</Title>
+        <Title>{t("existingAssistants")}</Title>
         {totalItems > 0 ? (
           <>
             <SubLabel>
@@ -96,7 +98,7 @@ function MainContent({
         ) : (
           <div className="mt-6 p-8 border border-border rounded-lg bg-background-weak text-center">
             <Text className="text-lg font-medium mb-2">
-              No custom assistants yet
+              {t("noCustomAssistants")}
             </Text>
             <Text className="text-subtle mb-3">
               Create your first assistant to:
@@ -120,6 +122,7 @@ function MainContent({
 }
 
 export default function Page() {
+  const t = useTranslations("admin");
   const [currentPage, setCurrentPage] = useState(1);
   const { personas, totalItems, isLoading, error, refresh } = useAdminPersonas({
     pageNum: currentPage - 1, // Backend uses 0-indexed pages
@@ -128,7 +131,7 @@ export default function Page() {
 
   return (
     <>
-      <AdminPageTitle icon={SvgOnyxOctagon} title="Assistants" />
+      <AdminPageTitle icon={SvgOnyxOctagon} title={t("assistants")} />
 
       {isLoading && <ThreeDotsLoader />}
 

@@ -16,8 +16,10 @@ import Cookies from "js-cookie";
 import { TOGGLED_CONNECTORS_COOKIE_NAME } from "@/lib/constants";
 import { ConnectorStaggeredSkeleton } from "./ConnectorRowSkeleton";
 import { IndexingStatusRequest } from "@/lib/types";
+import { useTranslations } from "next-intl";
 
 function Main() {
+  const t = useTranslations("admin");
   // State for filter management
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     accessType: null,
@@ -181,11 +183,13 @@ function Main() {
         </div>
       ) : !ccPairsIndexingStatuses || ccPairsIndexingStatuses.length === 0 ? (
         <Text className="mt-12">
-          It looks like you don&apos;t have any connectors setup yet. Visit the{" "}
-          <Link className="text-link" href="/admin/add-connector">
-            Add Connector
-          </Link>{" "}
-          page to get started!
+          {t.rich("noConnectorsSetup", {
+            link: (chunks) => (
+              <Link className="text-link" href="/admin/add-connector">
+                {chunks}
+              </Link>
+            ),
+          })}
         </Text>
       ) : (
         <CCPairIndexingStatusTable
@@ -201,13 +205,14 @@ function Main() {
 }
 
 export default function Status() {
+  const t = useTranslations("admin");
   useToastFromQuery({
     "connector-created": {
-      message: "Connector created successfully",
+      message: t("connectorCreatedSuccess"),
       type: "success",
     },
     "connector-deleted": {
-      message: "Connector deleted successfully",
+      message: t("connectorDeletedSuccess"),
       type: "success",
     },
   });
@@ -216,9 +221,9 @@ export default function Status() {
     <>
       <AdminPageTitle
         icon={<NotebookIcon size={32} />}
-        title="Existing Connectors"
+        title={t("existingConnectorsTitle")}
         farRightElement={
-          <Button href="/admin/add-connector">Add Connector</Button>
+          <Button href="/admin/add-connector">{t("addConnectorButton")}</Button>
         }
       />
 

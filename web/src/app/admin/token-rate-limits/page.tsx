@@ -18,6 +18,8 @@ import { usePaidEnterpriseFeaturesEnabled } from "@/components/settings/usePaidE
 import CreateButton from "@/refresh-components/buttons/CreateButton";
 import { SvgGlobe, SvgShield, SvgUser, SvgUsers } from "@opal/icons";
 import { Section } from "@/layouts/general-layouts";
+import { useTranslations } from "next-intl";
+
 const BASE_URL = "/api/admin/token-rate-limits";
 const GLOBAL_TOKEN_FETCH_URL = `${BASE_URL}/global`;
 const USER_TOKEN_FETCH_URL = `${BASE_URL}/users`;
@@ -59,6 +61,7 @@ const handleCreateTokenRateLimit = async (
 };
 
 function Main() {
+  const t = useTranslations("admin");
   const [tabIndex, setTabIndex] = useState(0);
   const [modalIsOpen, setModalIsOpen] = useState(false);
 
@@ -91,7 +94,7 @@ function Main() {
     )
       .then(() => {
         setModalIsOpen(false);
-        toast.success("Token rate limit created!");
+        toast.success(t("tokenRateLimitCreated"));
         updateTable(target_scope);
       })
       .catch((error) => {
@@ -135,7 +138,7 @@ function Main() {
       </ul>
 
       <CreateButton onClick={() => setModalIsOpen(true)}>
-        Create a Token Rate Limit
+        {t("createTokenRateLimit")}
       </CreateButton>
 
       {isPaidEnterpriseFeaturesEnabled ? (
@@ -207,9 +210,10 @@ function Main() {
 }
 
 export default function Page() {
+  const t = useTranslations("admin");
   return (
     <>
-      <AdminPageTitle title="Token Rate Limits" icon={SvgShield} />
+      <AdminPageTitle title={t("tokenRateLimits")} icon={SvgShield} />
       <Main />
     </>
   );

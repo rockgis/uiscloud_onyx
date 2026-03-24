@@ -11,8 +11,10 @@ import { AdminPageTitle } from "@/components/admin/Title";
 import Text from "@/refresh-components/texts/Text";
 import { cn } from "@/lib/utils";
 import { SvgLock } from "@opal/icons";
+import { useTranslations } from "next-intl";
 
 function Main() {
+  const t = useTranslations("admin");
   const {
     data: isApiKeySet,
     error,
@@ -65,7 +67,7 @@ function Main() {
             text05
             className="border-b border-border-01 pb-2"
           >
-            Process with Unstructured API
+            {t("processWithUnstructured")}
           </Text>
 
           <div className="flex flex-col gap-2">
@@ -148,10 +150,11 @@ function Main() {
 }
 
 export default function Page() {
+  const t = useTranslations("admin");
   return (
     <>
       <AdminPageTitle
-        title="Document Processing"
+        title={t("documentProcessing")}
         icon={<DocumentIcon2 size={32} className="my-auto" />}
       />
       <Main />

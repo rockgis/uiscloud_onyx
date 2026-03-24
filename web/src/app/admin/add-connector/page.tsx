@@ -33,6 +33,7 @@ import SourceTile from "@/components/SourceTile";
 import InputTypeIn from "@/refresh-components/inputs/InputTypeIn";
 import Text from "@/refresh-components/texts/Text";
 import { SvgUploadCloud } from "@opal/icons";
+import { useTranslations } from "next-intl";
 function SourceTileTooltipWrapper({
   sourceMetadata,
   preSelect,
@@ -124,6 +125,7 @@ function SourceTileTooltipWrapper({
 }
 
 export default function Page() {
+  const t = useTranslations("admin");
   const sources = useMemo(() => listSourceMetadata(), []);
 
   const [rawSearchTerm, setSearchTerm] = useState("");
@@ -251,17 +253,17 @@ export default function Page() {
     <>
       <AdminPageTitle
         icon={SvgUploadCloud}
-        title="Add Connector"
+        title={t("addConnector")}
         farRightElement={
           <Button href="/admin/indexing/status" primary>
-            See Connectors
+            {t("seeConnectors")}
           </Button>
         }
       />
 
       <InputTypeIn
         type="text"
-        placeholder="Search Connectors"
+        placeholder={t("searchConnectors")}
         ref={searchInputRef}
         value={rawSearchTerm} // keep the input bound to immediate state
         onChange={(event) => setSearchTerm(event.target.value)}
@@ -272,7 +274,7 @@ export default function Page() {
       {dedupedPopular.length > 0 && (
         <div className="pt-8">
           <Text as="p" headingH3>
-            Popular
+            {t("popular")}
           </Text>
           <div className="flex flex-wrap gap-4 p-4">
             {dedupedPopular.map((source) => (

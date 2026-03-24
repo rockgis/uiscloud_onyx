@@ -32,8 +32,10 @@ import CopyIconButton from "@/refresh-components/buttons/CopyIconButton";
 import Text from "@/refresh-components/texts/Text";
 import { SvgEdit, SvgKey, SvgRefreshCw } from "@opal/icons";
 import { useCloudSubscription } from "@/hooks/useCloudSubscription";
+import { useTranslations } from "next-intl";
 
 function Main() {
+  const t = useTranslations("admin");
   const {
     data: apiKeys,
     isLoading,
@@ -73,14 +75,13 @@ function Main() {
   const introSection = (
     <div className="flex flex-col items-start gap-4">
       <Text as="p">
-        API Keys allow you to access Onyx APIs programmatically.
         {canCreateKeys
-          ? " Click the button below to generate a new API Key."
-          : ""}
+          ? t("apiKeysDescriptionWithButton")
+          : t("apiKeysDescription")}
       </Text>
       {canCreateKeys ? (
         <CreateButton onClick={() => setShowCreateUpdateForm(true)}>
-          Create API Key
+          {t("createApiKey")}
         </CreateButton>
       ) : (
         <div className="flex flex-col gap-2 rounded-lg bg-background-tint-02 p-4">
@@ -120,10 +121,10 @@ function Main() {
       <Modal open={!!fullApiKey}>
         <Modal.Content width="sm" height="sm">
           <Modal.Header
-            title="New API Key"
+            title={t("newApiKey")}
             icon={SvgKey}
             onClose={() => setFullApiKey(null)}
-            description="Make sure you copy your new API key. You won't be able to see this key again."
+            description={t("newApiKeyDescription")}
           />
           <Modal.Body>
             <Text as="p" className="break-all flex-1">
@@ -142,14 +143,14 @@ function Main() {
         <>
           <Separator />
 
-          <Title className="mt-6">Existing API Keys</Title>
+          <Title className="mt-6">{t("existingApiKeys")}</Title>
           <Table className="overflow-visible">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>API Key</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Regenerate</TableHead>
+                <TableHead>{t("regenerate")}</TableHead>
                 <TableHead>Delete</TableHead>
               </TableRow>
             </TableHeader>
@@ -191,7 +192,7 @@ function Main() {
                         mutate("/api/admin/api-key");
                       }}
                     >
-                      Refresh
+                      {t("regenerate")}
                     </Button>
                   </TableCell>
                   <TableCell>
@@ -232,9 +233,10 @@ function Main() {
 }
 
 export default function Page() {
+  const t = useTranslations("admin");
   return (
     <>
-      <AdminPageTitle title="API Keys" icon={SvgKey} />
+      <AdminPageTitle title={t("apiKeys")} icon={SvgKey} />
 
       <Main />
     </>

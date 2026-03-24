@@ -23,6 +23,8 @@ import Button from "@/refresh-components/buttons/Button";
 import InputTypeIn from "@/refresh-components/inputs/InputTypeIn";
 import { Spinner } from "@/components/Spinner";
 import { SvgDownloadCloud, SvgUser, SvgUserPlus } from "@opal/icons";
+import { useTranslations } from "next-intl";
+
 interface CountDisplayProps {
   label: string;
   value: number | null;
@@ -57,6 +59,7 @@ const UsersTables = ({
   isDownloadingUsers: boolean;
   setIsDownloadingUsers: (loading: boolean) => void;
 }) => {
+  const t = useTranslations("admin");
   const [currentUsersCount, setCurrentUsersCount] = useState<number | null>(
     null
   );
@@ -140,18 +143,18 @@ const UsersTables = ({
 
   const tabs = SimpleTabs.generateTabs({
     current: {
-      name: "Current Users",
+      name: t("currentUsers"),
       content: (
         <Card className="w-full">
           <CardHeader>
             <div className="flex justify-between items-center gap-1">
-              <CardTitle>Current Users</CardTitle>
+              <CardTitle>{t("currentUsers")}</CardTitle>
               <Button
                 leftIcon={SvgDownloadCloud}
                 disabled={isDownloadingUsers}
                 onClick={() => downloadAllUsers()}
               >
-                {isDownloadingUsers ? "Downloading..." : "Download CSV"}
+                {isDownloadingUsers ? t("downloading") : t("downloadCsv")}
               </Button>
             </div>
           </CardHeader>
@@ -162,7 +165,7 @@ const UsersTables = ({
               invitedUsersMutate={invitedUsersMutate}
               countDisplay={
                 <CountDisplay
-                  label="Total users"
+                  label={t("totalUsers")}
                   value={currentUsersCount}
                   isLoading={currentUsersLoading}
                 />
@@ -180,14 +183,14 @@ const UsersTables = ({
       ),
     },
     invited: {
-      name: "Invited Users",
+      name: t("invitedUsers"),
       content: (
         <Card className="w-full">
           <CardHeader>
             <div className="flex justify-between items-center gap-1">
-              <CardTitle>Invited Users</CardTitle>
+              <CardTitle>{t("invitedUsers")}</CardTitle>
               <CountDisplay
-                label="Total invited"
+                label={t("totalInvited")}
                 value={invitedUsersCount}
                 isLoading={invitedUsersLoading}
               />
@@ -207,14 +210,14 @@ const UsersTables = ({
     },
     ...(NEXT_PUBLIC_CLOUD_ENABLED && {
       pending: {
-        name: "Pending Users",
+        name: t("pendingUsers"),
         content: (
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center gap-1">
-                <CardTitle>Pending Users</CardTitle>
+                <CardTitle>{t("pendingUsers")}</CardTitle>
                 <CountDisplay
-                  label="Total pending"
+                  label={t("totalPending")}
                   value={pendingUsersCount}
                   isLoading={pendingUsersLoading}
                 />
@@ -239,6 +242,7 @@ const UsersTables = ({
 };
 
 const SearchableTables = () => {
+  const t = useTranslations("common");
   const [query, setQuery] = useState("");
   const [isDownloadingUsers, setIsDownloadingUsers] = useState(false);
 
@@ -248,7 +252,7 @@ const SearchableTables = () => {
       <div className="flex flex-col gap-y-4">
         <div className="flex flex-row items-center gap-2">
           <InputTypeIn
-            placeholder="Search"
+            placeholder={t("search")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -265,6 +269,7 @@ const SearchableTables = () => {
 };
 
 function AddUserButton() {
+  const t = useTranslations("admin");
   const [bulkAddUsersModal, setBulkAddUsersModal] = useState(false);
 
   const onSuccess = () => {
@@ -287,7 +292,7 @@ function AddUserButton() {
   return (
     <>
       <CreateButton primary onClick={handleInviteClick}>
-        Invite Users
+        {t("inviteUsers")}
       </CreateButton>
 
       {bulkAddUsersModal && (
@@ -295,15 +300,13 @@ function AddUserButton() {
           <Modal.Content>
             <Modal.Header
               icon={SvgUserPlus}
-              title="Bulk Add Users"
+              title={t("bulkAddUsers")}
               onClose={() => setBulkAddUsersModal(false)}
             />
             <Modal.Body>
               <div className="flex flex-col gap-2">
                 <Text as="p">
-                  Add the email addresses to import, separated by whitespaces.
-                  Invited users will be able to login to this domain with their
-                  email address.
+                  {t("bulkAddDescription")}
                 </Text>
                 <BulkAdd onSuccess={onSuccess} onFailure={onFailure} />
               </div>
@@ -316,9 +319,10 @@ function AddUserButton() {
 }
 
 const Page = () => {
+  const t = useTranslations("admin");
   return (
     <>
-      <AdminPageTitle title="Manage Users" icon={SvgUser} />
+      <AdminPageTitle title={t("manageUsers")} icon={SvgUser} />
       <SearchableTables />
     </>
   );

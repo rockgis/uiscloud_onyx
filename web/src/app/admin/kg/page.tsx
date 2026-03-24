@@ -31,6 +31,7 @@ import KGEntityTypes from "@/app/admin/kg/KGEntityTypes";
 import Text from "@/refresh-components/texts/Text";
 import { cn } from "@/lib/utils";
 import { SvgSettings } from "@opal/icons";
+import { useTranslations } from "next-intl";
 
 function createDomainField(
   name: string,
@@ -208,6 +209,7 @@ function KGConfiguration({
 }
 
 function Main() {
+  const t = useTranslations("admin");
   // Data:
   const {
     data: configData,
@@ -275,7 +277,7 @@ function Main() {
             leftIcon={SvgSettings}
             onClick={() => setConfigureModalShown(true)}
           >
-            Configure Knowledge Graph
+            {t("configureKnowledgeGraph")}
           </Button>
         </div>
       </CardSection>
@@ -292,7 +294,7 @@ function Main() {
           <Modal.Content>
             <Modal.Header
               icon={SvgSettings}
-              title="Configure Knowledge Graph"
+              title={t("configureKnowledgeGraph")}
               onClose={() => setConfigureModalShown(false)}
             />
             <Modal.Body>
@@ -313,6 +315,7 @@ function Main() {
 }
 
 export default function Page() {
+  const t = useTranslations("admin");
   const { kgExposed, isLoading } = useIsKGExposed();
 
   if (isLoading) {
@@ -326,7 +329,7 @@ export default function Page() {
   return (
     <>
       <AdminPageTitle
-        title="Knowledge Graph"
+        title={t("knowledgeGraphTitle")}
         icon={<BrainIcon size={32} className="my-auto" />}
       />
       <Main />

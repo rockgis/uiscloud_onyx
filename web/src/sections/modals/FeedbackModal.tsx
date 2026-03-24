@@ -10,6 +10,7 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import * as InputLayouts from "@/layouts/input-layouts";
 import InputTextAreaField from "@/refresh-components/form/InputTextAreaField";
+import { useTranslations } from "next-intl";
 
 export interface FeedbackModalProps {
   feedbackType: FeedbackType;
@@ -24,6 +25,8 @@ export default function FeedbackModal({
   feedbackType,
   messageId,
 }: FeedbackModalProps) {
+  const t = useTranslations("feedback");
+  const tCommon = useTranslations("common");
   const modal = useModal();
   const { handleFeedbackChange } = useFeedbackController();
 
@@ -60,7 +63,7 @@ export default function FeedbackModal({
         <Modal.Content width="sm">
           <Modal.Header
             icon={feedbackType === "like" ? SvgThumbsUp : SvgThumbsDown}
-            title="Feedback"
+            title={t("title")}
             onClose={() => modal.toggle(false)}
           />
           <Formik
@@ -78,7 +81,7 @@ export default function FeedbackModal({
                 <Modal.Body>
                   <InputLayouts.Vertical
                     name="additional_feedback"
-                    title="Provide Additional Details"
+                    title={t("provideDetails")}
                     optional={feedbackType === "like"}
                   >
                     <InputTextAreaField
@@ -94,7 +97,7 @@ export default function FeedbackModal({
                     secondary
                     type="button"
                   >
-                    Cancel
+                    {tCommon("cancel")}
                   </Button>
                   <Button
                     onClick={() => formikHandleSubmit()}
@@ -103,7 +106,7 @@ export default function FeedbackModal({
                       (feedbackType === "dislike" && (!dirty || !isValid))
                     }
                   >
-                    {isSubmitting ? "Submitting..." : "Submit"}
+                    {isSubmitting ? t("submitting") : tCommon("submit")}
                   </Button>
                 </Modal.Footer>
               </>

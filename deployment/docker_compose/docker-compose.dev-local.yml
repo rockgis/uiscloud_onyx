@@ -1,0 +1,38 @@
+# Docker Compose Override for Local Development (no postgres port conflict)
+# Use this when local PostgreSQL is already running on port 5432
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev-local.yml up -d --wait
+
+services:
+  api_server:
+    ports:
+      - "8080:8080"
+
+  index:
+    ports:
+      - "19071:19071"
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:19071/state/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  inference_model_server:
+    ports:
+      - "9000:9000"
+
+  cache:
+    ports:
+      - "6379:6379"
+
+  minio:
+    ports:
+      - "9004:9000"
+      - "9005:9001"
+
+  code-interpreter:
+    ports:
+      - "8000:8000"

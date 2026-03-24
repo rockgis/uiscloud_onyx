@@ -20,6 +20,8 @@ import CardSection from "@/components/admin/CardSection";
 import { ErrorCallout } from "@/components/ErrorCallout";
 import { useToastFromQuery } from "@/hooks/useToast";
 import { SvgSearch } from "@opal/icons";
+import { useTranslations } from "next-intl";
+
 export interface EmbeddingDetails {
   api_key: string;
   custom_config: any;
@@ -28,6 +30,7 @@ export interface EmbeddingDetails {
 }
 
 function Main() {
+  const t = useTranslations("admin");
   const settings = useContext(SettingsContext);
   useToastFromQuery({
     "search-settings": {
@@ -83,12 +86,9 @@ function Main() {
       {!futureEmbeddingModel ? (
         <>
           {settings?.settings.needs_reindexing && (
-            <p className="max-w-3xl">
-              Your search settings are currently out of date! We recommend
-              updating your search settings and re-indexing.
-            </p>
+            <p className="max-w-3xl">{t("searchSettingsOutOfDate")}</p>
           )}
-          <Title className="mb-6 mt-8 !text-2xl">Embedding Model</Title>
+          <Title className="mb-6 mt-8 !text-2xl">{t("embeddingModel")}</Title>
 
           {currentEmeddingModel ? (
             <ModelPreview model={currentEmeddingModel} display showDetails />
@@ -96,7 +96,7 @@ function Main() {
             <Title className="mt-8 mb-4">Choose your Embedding Model</Title>
           )}
 
-          <Title className="mb-2 mt-8 !text-2xl">Post-processing</Title>
+          <Title className="mb-2 mt-8 !text-2xl">{t("postProcessing")}</Title>
 
           <CardSection className="!mr-auto mt-8 !w-96 shadow-lg bg-background-tint-00 rounded-16">
             {searchSettings && (
@@ -104,20 +104,24 @@ function Main() {
                 <div className="px-1 w-full rounded-lg">
                   <div className="space-y-4">
                     <div>
-                      <Text className="font-semibold">Multipass Indexing</Text>
+                      <Text className="font-semibold">
+                        {t("multipassIndexing")}
+                      </Text>
                       <Text className="text-text-700">
                         {searchSettings.multipass_indexing
-                          ? "Enabled"
-                          : "Disabled"}
+                          ? t("enabled")
+                          : t("disabled")}
                       </Text>
                     </div>
 
                     <div>
-                      <Text className="font-semibold">Contextual RAG</Text>
+                      <Text className="font-semibold">
+                        {t("contextualRag")}
+                      </Text>
                       <Text className="text-text-700">
                         {searchSettings.enable_contextual_rag
-                          ? "Enabled"
-                          : "Disabled"}
+                          ? t("enabled")
+                          : t("disabled")}
                       </Text>
                     </div>
                   </div>
@@ -128,7 +132,7 @@ function Main() {
 
           <div className="mt-4">
             <Button action href="/admin/embeddings">
-              Update Search Settings
+              {t("updateSearchSettings")}
             </Button>
           </div>
         </>
@@ -140,9 +144,10 @@ function Main() {
 }
 
 export default function Page() {
+  const t = useTranslations("admin");
   return (
     <>
-      <AdminPageTitle title="Search Settings" icon={SvgSearch} />
+      <AdminPageTitle title={t("searchSettings")} icon={SvgSearch} />
       <Main />
     </>
   );

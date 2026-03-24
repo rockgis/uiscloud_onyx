@@ -279,3 +279,75 @@ function ContactForm() {
 **Prefer using `useSWR` for data fetching. Data should generally be fetched on the client side. Components that need data should display a loader / placeholder while waiting for that data. Prefer loading data within the component that needs it rather than at the top level and passing it down.**
 
 **Reason:** Client side fetching allows us to load the skeleton of the page without waiting for data to load, leading to a snappier UX. Loading data where needed reduces dependencies between a component and its parent component(s).
+
+## 13. Internationalization (i18n)
+
+**All user-facing text must use `next-intl` translation functions. Never hardcode display strings.**
+
+**Reason:** The app supports English and Korean. Hardcoded strings break language switching.
+
+### Setup
+- Library: `next-intl` v4.8.3
+- Locales: `en` (default), `ko`
+- URL strategy: `localePrefix: 'never'` (no URL prefix changes)
+- Locale detection: `NEXT_LOCALE` cookie → default `en`
+- Translation files: `web/src/messages/en.json`, `web/src/messages/ko.json`
+
+### Usage
+
+```typescript
+// ✅ Good — Client component
+"use client";
+import { useTranslations } from 'next-intl';
+
+function MyComponent() {
+  const t = useTranslations('namespace');
+  return <Text>{t('myKey')}</Text>;
+}
+
+// ✅ Good — Server component
+import { getTranslations } from 'next-intl/server';
+
+async function MyPage() {
+  const t = await getTranslations('namespace');
+  return <Text>{t('myKey')}</Text>;
+}
+
+// ❌ Bad — Hardcoded string
+function MyComponent() {
+  return <Text>Submit</Text>;
+}
+```
+
+### Translation Namespaces
+
+| 네임스페이스 | 용도 |
+|---|---|
+| `auth.*` | 로그인/회원가입/비밀번호 관련 |
+| `sidebar.*` | 사이드바 메뉴 |
+| `chat.*` | 채팅 컨텍스트 메뉴 및 모달 |
+| `settings.*` | 사용자 설정 페이지 |
+| `admin.*` | 어드민 패널 전체 |
+| `common.*` | 공통 버튼/레이블 (Save, Cancel, Delete 등) |
+| `errors.*` | 에러 메시지 |
+| `shareChat.*` | 채팅 공유 모달 |
+| `feedback.*` | 피드백 모달 |
+| `agentViewer.*` | 에이전트 뷰어 모달 |
+| `shareAgent.*` | 에이전트 공유 모달 |
+| `textView.*` | 파일 뷰어 모달 |
+| `languageSwitcher.*` | 언어 전환 라벨 |
+
+### Key Files
+
+- `web/src/i18n/routing.ts` — locale 목록 및 라우팅 설정
+- `web/src/i18n/request.ts` — 서버사이드 쿠키 기반 locale 감지
+- `web/src/components/LanguageSwitcher.tsx` — 앱 내 언어 선택 컴포넌트 (설정 팝오버)
+- `web/src/components/auth/LoginLanguageSwitcher.tsx` — 로그인 페이지 언어 선택 컴포넌트
+- `web/src/components/auth/AuthFlowContainer.tsx` — 언어 선택기가 포함된 인증 레이아웃
+
+### Rules
+
+- `useTranslations`는 컴포넌트 최상단에서 한 번만 호출, JSX 내 인라인 호출 금지
+- 헬퍼 함수에 번역이 필요한 경우 `(key: string) => string` 타입 파라미터로 전달
+- ICU 메시지 형식 지원: `t('key', { count: 5 })`, `t.rich('key', { b: (c) => <b>{c}</b> })`
+- 새 키 추가 시 `en.json`과 `ko.json` 모두 동시에 업데이트

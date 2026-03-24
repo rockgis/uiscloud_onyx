@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import Button from "@/refresh-components/buttons/Button";
 import {
   Table,
@@ -36,6 +37,7 @@ export default function TextViewModal({
   presentingDocument,
   onClose,
 }: TextViewProps) {
+  const t = useTranslations("textView");
   const [zoom, setZoom] = useState(100);
   const [fileContent, setFileContent] = useState("");
   const [fileUrl, setFileUrl] = useState("");
@@ -210,7 +212,7 @@ export default function TextViewModal({
       >
         <Modal.Header
           icon={SvgFileText}
-          title={fileName || "Document"}
+          title={fileName || t("fileViewer")}
           onClose={onClose}
         >
           <Section flexDirection="row" justifyContent="start" gap={0.25}>
@@ -218,20 +220,20 @@ export default function TextViewModal({
               prominence="tertiary"
               onClick={handleZoomOut}
               icon={SvgZoomOut}
-              tooltip="Zoom Out"
+              tooltip={t("zoomOut")}
             />
             <Text mainUiBody>{zoom}%</Text>
             <OpalButton
               prominence="tertiary"
               onClick={handleZoomIn}
               icon={SvgZoomIn}
-              tooltip="Zoom In"
+              tooltip={t("zoomIn")}
             />
             <OpalButton
               prominence="tertiary"
               onClick={handleDownload}
               icon={SvgDownloadCloud}
-              tooltip="Download"
+              tooltip={t("download")}
             />
           </Section>
         </Modal.Header>
@@ -315,7 +317,7 @@ export default function TextViewModal({
                     <Text as="p" text03 mainUiBody>
                       This file format is not supported for preview.
                     </Text>
-                    <Button onClick={handleDownload}>Download File</Button>
+                    <Button onClick={handleDownload}>{t("downloadFile")}</Button>
                   </div>
                 )}
               </div>
@@ -325,7 +327,7 @@ export default function TextViewModal({
 
         <Modal.Footer>
           <BasicModalFooter
-            submit={<Button onClick={handleDownload}>Download File</Button>}
+            submit={<Button onClick={handleDownload}>{t("downloadFile")}</Button>}
           />
         </Modal.Footer>
       </Modal.Content>

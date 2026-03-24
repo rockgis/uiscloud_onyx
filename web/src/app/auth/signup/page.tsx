@@ -15,6 +15,7 @@ import AuthErrorDisplay from "@/components/auth/AuthErrorDisplay";
 import Text from "@/refresh-components/texts/Text";
 import { cn } from "@/lib/utils";
 import { AuthType } from "@/lib/constants";
+import { getTranslations } from "next-intl/server";
 
 const Page = async (props: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -61,6 +62,9 @@ const Page = async (props: {
     authUrl = await getAuthUrlSS(authTypeMetadata.authType, null);
   }
 
+  const t = await getTranslations("auth");
+  const tCommon = await getTranslations("common");
+
   return (
     <AuthFlowContainer authState="signup">
       <HealthCheckBanner />
@@ -76,10 +80,10 @@ const Page = async (props: {
         >
           <div className="w-full">
             <Text as="p" headingH2 text05>
-              {cloud ? "Complete your sign up" : "Create account"}
+              {cloud ? t("completeSignUp") : t("createAccount")}
             </Text>
             <Text as="p" text03>
-              Get started with Onyx
+              {t("getStarted")}
             </Text>
           </div>
           {cloud && authUrl && (
@@ -88,7 +92,7 @@ const Page = async (props: {
               <div className="flex items-center w-full my-4">
                 <div className="flex-grow border-t border-border-01" />
                 <Text as="p" mainUiMuted text03 className="mx-2">
-                  or
+                  {tCommon("or")}
                 </Text>
                 <div className="flex-grow border-t border-border-01" />
               </div>

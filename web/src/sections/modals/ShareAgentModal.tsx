@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import Modal, { BasicModalFooter } from "@/refresh-components/Modal";
 import Button from "@/refresh-components/buttons/Button";
 import {
@@ -49,6 +50,7 @@ interface ShareAgentFormContentProps {
 }
 
 function ShareAgentFormContent({ agentId }: ShareAgentFormContentProps) {
+  const t = useTranslations("shareAgent");
   const { values, setFieldValue, handleSubmit, dirty } =
     useFormikContext<ShareAgentFormValues>();
   const { data: usersData } = useShareableUsers({ includeApiKeys: true });
@@ -139,7 +141,7 @@ function ShareAgentFormContent({ agentId }: ShareAgentFormContentProps) {
 
   return (
     <Modal.Content width="sm" height="lg">
-      <Modal.Header icon={SvgShare} title="Share Agent" onClose={handleClose} />
+      <Modal.Header icon={SvgShare} title={t("title")} onClose={handleClose} />
 
       <Modal.Body padding={0.5}>
         <Card variant="borderless" padding={0.5}>
@@ -234,8 +236,8 @@ function ShareAgentFormContent({ agentId }: ShareAgentFormContentProps) {
 
             <Tabs.Content value={YOUR_ORGANIZATION_TAB} padding={0.5}>
               <InputLayouts.Horizontal
-                title="Publish This Agent"
-                description="Make this agent available to everyone in your organization."
+                title={t("publishThisAgent")}
+                description={t("publishDescription")}
               >
                 <SwitchField name="isPublic" />
               </InputLayouts.Horizontal>
@@ -249,18 +251,18 @@ function ShareAgentFormContent({ agentId }: ShareAgentFormContentProps) {
           left={
             agentId ? (
               <Button secondary leftIcon={SvgLink} onClick={handleCopyLink}>
-                Copy Link
+                {t("copyLink")}
               </Button>
             ) : undefined
           }
           cancel={
             <Button secondary onClick={handleClose}>
-              Done
+              {t("done")}
             </Button>
           }
           submit={
             <Button onClick={() => handleSubmit()} disabled={!dirty}>
-              Share
+              {t("share")}
             </Button>
           }
         />

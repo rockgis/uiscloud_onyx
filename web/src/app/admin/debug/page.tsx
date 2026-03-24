@@ -17,7 +17,9 @@ import { Card } from "@/components/ui/card";
 import Text from "@/components/ui/text";
 import { Spinner } from "@/components/Spinner";
 import { SvgDownloadCloud } from "@opal/icons";
+import { useTranslations } from "next-intl";
 function Main() {
+  const t = useTranslations("admin");
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -73,9 +75,9 @@ function Main() {
       {isDownloading && <Spinner />}
       <div className="mb-8">
         <Text className="mb-3">
-          <b>Debug Logs</b> provide detailed information about system operations
-          and events. You can download logs for each category to analyze system
-          behavior or troubleshoot issues.
+          {t.rich("debugLogsDescription", {
+            bold: (chunks) => <b>{chunks}</b>,
+          })}
         </Text>
 
         {categories.length > 0 && (
@@ -83,8 +85,8 @@ function Main() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("category")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -100,7 +102,7 @@ function Main() {
                         secondary
                         leftIcon={SvgDownloadCloud}
                       >
-                        Download Logs
+                        {t("downloadLogs")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -115,9 +117,10 @@ function Main() {
 }
 
 const Page = () => {
+  const t = useTranslations("admin");
   return (
     <>
-      <AdminPageTitle icon={<FiDownload size={32} />} title="Debug Logs" />
+      <AdminPageTitle icon={<FiDownload size={32} />} title={t("debugLogs")} />
       <Main />
     </>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import * as InputLayouts from "@/layouts/input-layouts";
 import {
@@ -103,21 +104,23 @@ function PATModal({
   onCreate,
   createdToken,
 }: PATModalProps) {
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
   return (
     <ConfirmationModalLayout
       icon={SvgKey}
-      title="Create Access Token"
+      title={t("createAccessToken")}
       description="All API requests using this token will inherit your access permissions and be attributed to you as an individual."
       onClose={onClose}
       submit={
         !!createdToken?.token ? (
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>{tCommon("close")}</Button>
         ) : (
           <Button
             onClick={onCreate}
             disabled={isCreating || !newTokenName.trim()}
           >
-            {isCreating ? "Creating Token..." : "Create Token"}
+            {isCreating ? "Creating Token..." : tCommon("create")}
           </Button>
         )
       }
@@ -131,7 +134,7 @@ function PATModal({
           </InputLayouts.Vertical>
         ) : (
           <>
-            <InputLayouts.Vertical title="Token Name">
+            <InputLayouts.Vertical title={t("tokenName")}>
               <InputTypeIn
                 placeholder="Name your token"
                 value={newTokenName}
@@ -141,7 +144,7 @@ function PATModal({
               />
             </InputLayouts.Vertical>
             <InputLayouts.Vertical
-              title="Expires in"
+              title={t("expiresIn")}
               subDescription={
                 expirationDays === "null"
                   ? undefined
@@ -182,6 +185,8 @@ function PATModal({
 }
 
 function GeneralSettings() {
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
   const {
     user,
     updateUserPersonalization,
@@ -237,7 +242,7 @@ function GeneralSettings() {
       {showDeleteConfirmation && (
         <ConfirmationModalLayout
           icon={SvgTrash}
-          title="Delete All Chats"
+          title={t("deleteAllChats")}
           onClose={() => setShowDeleteConfirmation(false)}
           submit={
             <Button
@@ -263,10 +268,10 @@ function GeneralSettings() {
 
       <Section gap={2}>
         <Section gap={0.75}>
-          <InputLayouts.Title title="Profile" />
+          <InputLayouts.Title title={t("profile")} />
           <Card>
             <InputLayouts.Horizontal
-              title="Full Name"
+              title={t("fullName")}
               description="We'll display this name in the app."
               center
             >
@@ -291,7 +296,7 @@ function GeneralSettings() {
               />
             </InputLayouts.Horizontal>
             <InputLayouts.Horizontal
-              title="Work Role"
+              title={t("workRole")}
               description="Share your role to better tailor responses."
               center
             >
@@ -319,10 +324,10 @@ function GeneralSettings() {
         </Section>
 
         <Section gap={0.75}>
-          <InputLayouts.Title title="Appearance" />
+          <InputLayouts.Title title={t("appearance")} />
           <Card>
             <InputLayouts.Horizontal
-              title="Color Mode"
+              title={t("colorMode")}
               description="Select your preferred color mode for the UI."
               center
             >
@@ -350,25 +355,25 @@ function GeneralSettings() {
                         : undefined
                     }
                   >
-                    Auto
+                    {t("colorModeAuto")}
                   </InputSelect.Item>
                   <InputSelect.Separator />
                   <InputSelect.Item
                     value={ThemePreference.LIGHT}
                     icon={() => <ColorSwatch light />}
                   >
-                    Light
+                    {t("colorModeLight")}
                   </InputSelect.Item>
                   <InputSelect.Item
                     value={ThemePreference.DARK}
                     icon={() => <ColorSwatch dark />}
                   >
-                    Dark
+                    {t("colorModeDark")}
                   </InputSelect.Item>
                 </InputSelect.Content>
               </InputSelect>
             </InputLayouts.Horizontal>
-            <InputLayouts.Vertical title="Chat Background">
+            <InputLayouts.Vertical title={t("chatBackground")}>
               <div className="flex flex-wrap gap-2">
                 {CHAT_BACKGROUND_OPTIONS.map((bg) => {
                   const currentBackgroundId =
@@ -392,7 +397,7 @@ function GeneralSettings() {
                     >
                       {isNone ? (
                         <div className="absolute inset-0 bg-background flex items-center justify-center">
-                          <span className="text-xs text-text-02">None</span>
+                          <span className="text-xs text-text-02">{t("none")}</span>
                         </div>
                       ) : (
                         <div
@@ -424,10 +429,10 @@ function GeneralSettings() {
         <Separator noPadding />
 
         <Section gap={0.75}>
-          <InputLayouts.Title title="Danger Zone" />
+          <InputLayouts.Title title={t("dangerZone")} />
           <Card>
             <InputLayouts.Horizontal
-              title="Delete All Chats"
+              title={t("deleteAllChats")}
               description="Permanently delete all your chat sessions."
               center
             >
@@ -438,7 +443,7 @@ function GeneralSettings() {
                 leftIcon={SvgTrash}
                 transient={showDeleteConfirmation}
               >
-                Delete All Chats
+                {t("deleteAllChats")}
               </Button>
             </InputLayouts.Horizontal>
           </Card>

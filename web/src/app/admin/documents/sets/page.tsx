@@ -41,6 +41,7 @@ import {
 import CreateButton from "@/refresh-components/buttons/CreateButton";
 import { SourceIcon } from "@/components/SourceIcon";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 const numToDisplay = 50;
 
@@ -167,6 +168,7 @@ const DocumentSetTable = ({
   refresh,
   refreshEditable,
 }: DocumentFeedbackTableProps) => {
+  const t = useTranslations("admin");
   const [page, setPage] = useState(1);
 
   // sort by name for consistent ordering
@@ -189,7 +191,7 @@ const DocumentSetTable = ({
 
   return (
     <div>
-      <Title>Existing Document Sets</Title>
+      <Title>{t("existingDocumentSets")}</Title>
       <Table className="overflow-visible mt-2">
         <TableHeader>
           <TableRow>
@@ -282,18 +284,18 @@ const DocumentSetTable = ({
                   <TableCell>
                     {documentSet.is_up_to_date ? (
                       <Badge variant="success" icon={FiCheckCircle}>
-                        Up to Date
+                        {t("statusUpToDate")}
                       </Badge>
                     ) : documentSet.cc_pair_summaries.length > 0 ||
                       (documentSet.federated_connector_summaries &&
                         documentSet.federated_connector_summaries.length >
                           0) ? (
                       <Badge variant="in_progress" icon={FiClock}>
-                        Syncing
+                        {t("statusSyncing")}
                       </Badge>
                     ) : (
                       <Badge variant="destructive" icon={FiAlertTriangle}>
-                        Deleting
+                        {t("statusDeleting")}
                       </Badge>
                     )}
                   </TableCell>
@@ -303,14 +305,14 @@ const DocumentSetTable = ({
                         variant={isEditable ? "success" : "default"}
                         icon={FiUnlock}
                       >
-                        Public
+                        {t("statusPublic")}
                       </Badge>
                     ) : (
                       <Badge
                         variant={isEditable ? "private" : "default"}
                         icon={FiLock}
                       >
-                        Private
+                        {t("statusPrivate")}
                       </Badge>
                     )}
                   </TableCell>
@@ -359,6 +361,7 @@ const DocumentSetTable = ({
 };
 
 const Main = () => {
+  const t = useTranslations("admin");
   const {
     data: documentSets,
     isLoading: isDocumentSetsLoading,
@@ -392,16 +395,17 @@ const Main = () => {
   return (
     <div className="mb-8">
       <Text className="mb-3">
-        <b>Document Sets</b> allow you to group logically connected documents
-        into a single bundle. These can then be used as a filter when performing
-        searches to control the scope of information Onyx searches over.
+        <b>{t("documentSets")}</b> allow you to group logically connected
+        documents into a single bundle. These can then be used as a filter when
+        performing searches to control the scope of information Onyx searches
+        over.
       </Text>
 
       <div className="mb-3"></div>
 
       <div className="flex mb-6">
         <CreateButton href="/admin/documents/sets/new">
-          New Document Set
+          {t("newDocumentSet")}
         </CreateButton>
       </div>
 
@@ -421,9 +425,13 @@ const Main = () => {
 };
 
 const Page = () => {
+  const t = useTranslations("admin");
   return (
     <>
-      <AdminPageTitle icon={<BookmarkIcon size={32} />} title="Document Sets" />
+      <AdminPageTitle
+        icon={<BookmarkIcon size={32} />}
+        title={t("documentSets")}
+      />
 
       <Main />
     </>
