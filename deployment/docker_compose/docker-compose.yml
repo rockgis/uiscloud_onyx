@@ -93,6 +93,8 @@ services:
       - PERSISTENT_DOCUMENT_STORAGE_PATH=${PERSISTENT_DOCUMENT_STORAGE_PATH:-/app/file-system}
       # Ollama local LLM 사용 시 타임아웃 연장 (기본 60초 → 300초)
       - LLM_SOCKET_READ_TIMEOUT=${LLM_SOCKET_READ_TIMEOUT:-300}
+      # qwen3 thinking mode 비활성화 (think:false → 응답 속도 대폭 향상)
+      - "LITELLM_EXTRA_BODY=${LITELLM_EXTRA_BODY:-{\"think\": false}}"
     # PRODUCTION: Uncomment the line below to use if IAM_AUTH is true and you are using iam auth for postgres
     # volumes:
     #   - ./bundle.pem:/app/bundle.pem:ro
