@@ -6,16 +6,39 @@ name: onyx
 #   docker compose -f docker-compose.prod.yml -f docker-compose.uiscloud.yml up -d
 #
 # 역할:
-#   1. web_server 이미지를 ghcr.io에서 빌드된 커스텀 이미지로 교체
-#      (한국어 i18n, UISCloud 커스터마이징 포함)
+#   1. UISCloud 커스텀 이미지로 교체 (web-server, backend, model-server)
+#      - web-server: 한국어 i18n, UISCloud UI 커스터마이징
+#      - backend: 임베딩 모델 변경 API 활성화, 이벤트 루프 블로킹 수정
+#      - model-server: BGE-M3(1024-dim, 한국어+영어) 사전 탑재
 #   2. 내부 서비스 포트 노출 제거 (프로덕션 보안 강화)
 
 services:
+  # ── UISCloud 커스텀 이미지 ──────────────────────────────────────────────────
+
   web_server:
-    # ghcr.io에 푸시된 커스텀 web-server 이미지 사용
-    # CI/CD가 main push마다 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/web-server:latest
+    # CI/CD 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/web-server
     image: ${UISCLOUD_WEB_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/web-server:latest}
-    # 프로덕션에서는 로컬 빌드 비활성화 (레지스트리 이미지만 사용)
+    build: !reset null
+
+  api_server:
+    # CI/CD 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/onyx-backend
+    # 변경사항: 임베딩 모델 변경 API(set-new-search-settings) 활성화
+    image: ${UISCLOUD_BACKEND_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-backend:latest}
+    build: !reset null
+
+  background:
+    # api_server와 동일한 backend 이미지 사용
+    image: ${UISCLOUD_BACKEND_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-backend:latest}
+    build: !reset null
+
+  inference_model_server:
+    # CI/CD 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/onyx-model-server
+    # 변경사항: BGE-M3 사전 탑재, 모델 로딩 이벤트 루프 블로킹 수정
+    image: ${UISCLOUD_MODEL_SERVER_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-model-server:latest}
+    build: !reset null
+
+  indexing_model_server:
+    image: ${UISCLOUD_MODEL_SERVER_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-model-server:latest}
     build: !reset null
 
   # ── 프로덕션 보안: 내부 서비스 포트 노출 제거 ─────────────────────────────

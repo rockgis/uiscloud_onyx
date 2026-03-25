@@ -132,15 +132,17 @@ async def embed_text(
 
         prefixed_texts = [f"{prefix}{text}" for text in texts] if prefix else texts
 
-        local_model = get_embedding_model(
-            model_name=model_name, max_context_length=max_context_length
-        )
-        # Run CPU-bound embedding in a thread pool
+        # Run both model loading and CPU-bound embedding in a thread pool
+        # to avoid blocking the async event loop during model initialization
+        def _load_and_embed() -> Any:
+            model = get_embedding_model(
+                model_name=model_name, max_context_length=max_context_length
+            )
+            return _concurrent_embedding(prefixed_texts, model, normalize_embeddings)
+
         embeddings_vectors = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: _concurrent_embedding(
-                prefixed_texts, local_model, normalize_embeddings
-            ),
+            _load_and_embed,
         )
         embeddings = [
             embedding if isinstance(embedding, list) else embedding.tolist()

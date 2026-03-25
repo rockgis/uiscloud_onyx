@@ -14,13 +14,14 @@ RUN uv pip install --system --no-cache-dir --upgrade \
     rm -rf ~/.cache/uv /tmp/*.txt
 
 # Stage for downloading embedding models
+# UISCloud: BAAI/bge-m3 (1024-dim, multilingual Korean+English)
 FROM base AS embedding-models
 RUN python -c "from huggingface_hub import snapshot_download; \
-snapshot_download('nomic-ai/nomic-embed-text-v1');"
+snapshot_download('BAAI/bge-m3');"
 
 # Initialize SentenceTransformer to cache the custom architecture
 RUN python -c "from sentence_transformers import SentenceTransformer; \
-SentenceTransformer(model_name_or_path='nomic-ai/nomic-embed-text-v1', trust_remote_code=True);"
+SentenceTransformer(model_name_or_path='BAAI/bge-m3', trust_remote_code=True);"
 
 # Final stage - combine all downloads
 FROM base AS final
