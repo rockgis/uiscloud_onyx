@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import time
 from typing import Any
 from typing import TYPE_CHECKING
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/encoder")
 
 
 _GLOBAL_MODELS_DICT: dict[str, "SentenceTransformer"] = {}
+_MODEL_LOAD_LOCK = threading.Lock()
 
 
 def get_embedding_model(
@@ -59,21 +61,24 @@ def get_embedding_model(
     global _GLOBAL_MODELS_DICT
 
     if model_name not in _GLOBAL_MODELS_DICT:
-        logger.notice(f"Loading {model_name}")
-        model = SentenceTransformer(
-            model_name_or_path=model_name,
-            trust_remote_code=True,
-        )
-        model.max_seq_length = max_context_length
-        _prewarm_rope(model, max_context_length)
-        _GLOBAL_MODELS_DICT[model_name] = model
-    else:
-        model = _GLOBAL_MODELS_DICT[model_name]
-        if max_context_length != model.max_seq_length:
-            model.max_seq_length = max_context_length
-            prev = getattr(model, "_rope_prewarmed_to", 0)
-            if max_context_length > int(prev or 0):
+        with _MODEL_LOAD_LOCK:
+            # Double-checked locking: re-check after acquiring lock
+            if model_name not in _GLOBAL_MODELS_DICT:
+                logger.notice(f"Loading {model_name}")
+                model = SentenceTransformer(
+                    model_name_or_path=model_name,
+                    trust_remote_code=True,
+                )
+                model.max_seq_length = max_context_length
                 _prewarm_rope(model, max_context_length)
+                _GLOBAL_MODELS_DICT[model_name] = model
+
+    model = _GLOBAL_MODELS_DICT[model_name]
+    if max_context_length != model.max_seq_length:
+        model.max_seq_length = max_context_length
+        prev = getattr(model, "_rope_prewarmed_to", 0)
+        if max_context_length > int(prev or 0):
+            _prewarm_rope(model, max_context_length)
 
     return _GLOBAL_MODELS_DICT[model_name]
 
