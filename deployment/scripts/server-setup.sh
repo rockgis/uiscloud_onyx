@@ -1,29 +1,38 @@
 #!/bin/bash
 # =============================================================================
-# UISCloud 서버 초기 설정 스크립트
+# UISCloud 서버 초기 설정 스크립트 (폐쇄망 전용)
 #
-# GitHub Releases에서 배포 패키지를 다운로드하여 서버를 초기화합니다.
+# 배포 패키지를 임의의 디렉터리에 압축 해제한 뒤,
+# 해당 디렉터리에서 이 스크립트를 실행하면 초기 설정을 완료합니다.
+# 인터넷 연결이 필요하지 않습니다.
+#
+# 사전 준비:
+#   - Docker 및 Docker Compose v2 설치 (오프라인 설치 방법은 아래 참고)
+#   - save-images.sh로 저장한 images/*.tar 파일 포함
 #
 # 사용법:
-#   # 최신 버전으로 설치
-#   curl -fsSL https://raw.githubusercontent.com/rockgis/uiscloud_onyx/main/deployment/scripts/server-setup.sh | bash
+#   tar xzf uiscloud-onyx.tar.gz
+#   cd uiscloud-onyx
+#   bash server-setup.sh [--domain example.com]
 #
-#   # 옵션 지정
-#   bash server-setup.sh [--version v1.0.0] [--dir /opt/uiscloud] [--domain example.com]
-#
-# 요구사항:
-#   - Ubuntu 22.04 LTS 이상
-#   - sudo 권한
+# 옵션:
+#   --domain <도메인>   nginx에 설정할 도메인 (기본값: localhost)
+#   --skip-firewall     방화벽 설정 건너뜀
 # =============================================================================
 set -euo pipefail
 
-# ── 기본값 ────────────────────────────────────────────────────────────────────
-REPO="rockgis/uiscloud_onyx"
-RELEASES_URL="https://github.com/${REPO}/releases"
-DEPLOY_DIR="/opt/uiscloud"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 스탠드얼론 모드: compose 파일이 스크립트와 같은 디렉터리에 있을 때
+# 레포지토리 모드: deployment/scripts/ 에서 실행될 때
+if [ -f "$SCRIPT_DIR/docker-compose.prod.yml" ]; then
+  DEPLOY_DIR="$SCRIPT_DIR"
+else
+  DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
 DOMAIN="localhost"
-VERSION="latest"
-USER_NAME="${USER:-$(whoami)}"
+SKIP_FIREWALL=false
 
 # ── 색상 출력 ─────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -41,119 +50,125 @@ step()  { echo -e "\n${BLUE}━━━ $* ━━━${NC}"; }
 # ── 옵션 파싱 ─────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --version) VERSION="$2"; shift 2 ;;
-    --dir)     DEPLOY_DIR="$2"; shift 2 ;;
-    --domain)  DOMAIN="$2"; shift 2 ;;
+    --domain)         DOMAIN="$2"; shift 2 ;;
+    --skip-firewall)  SKIP_FIREWALL=true; shift ;;
     *) error "알 수 없는 옵션: $1"; exit 1 ;;
   esac
 done
 
-# ── OS 확인 ───────────────────────────────────────────────────────────────────
-check_os() {
-  if [ "$(uname)" != "Linux" ]; then
-    error "이 스크립트는 Linux에서만 실행됩니다."
+# ── Docker 확인 ───────────────────────────────────────────────────────────────
+check_docker() {
+  step "Docker 확인"
+
+  if ! command -v docker &>/dev/null; then
+    error "Docker가 설치되어 있지 않습니다."
+    error ""
+    error "폐쇄망 Docker 설치 방법:"
+    error "  Ubuntu/Debian:"
+    error "    1. 인터넷 환경에서 Docker 패키지 다운로드:"
+    error "         apt-get download docker-ce docker-ce-cli containerd.io docker-compose-plugin"
+    error "    2. 폐쇄망 서버로 전송 후 설치:"
+    error "         sudo dpkg -i *.deb"
+    error "  또는 Docker 공식 오프라인 패키지 사용:"
+    error "    https://download.docker.com/linux/ubuntu/dists/"
     exit 1
   fi
 
-  if ! command -v apt-get &>/dev/null; then
-    error "Ubuntu/Debian 계열 Linux만 지원합니다."
+  log "Docker: $(docker --version)"
+
+  if ! docker compose version &>/dev/null; then
+    error "Docker Compose v2 플러그인이 설치되어 있지 않습니다."
+    error "  설치: sudo apt-get install docker-compose-plugin"
     exit 1
   fi
+
+  log "Docker Compose: $(docker compose version)"
+  log "✅ Docker 확인 완료"
 }
 
-# ── 필수 도구 설치 ────────────────────────────────────────────────────────────
-install_deps() {
-  step "필수 도구 확인"
+# ── Docker 데몬 실행 확인 ─────────────────────────────────────────────────────
+check_docker_daemon() {
+  step "Docker 데몬 확인"
 
-  local packages=(curl tar jq)
+  if ! docker info &>/dev/null; then
+    error "Docker 데몬이 실행 중이 아닙니다."
+    error "  시작: sudo systemctl start docker"
+    error "  자동시작 등록: sudo systemctl enable docker"
+    exit 1
+  fi
+
+  log "✅ Docker 데몬 실행 중"
+}
+
+# ── 패키지 파일 확인 ──────────────────────────────────────────────────────────
+check_package() {
+  step "배포 패키지 확인"
+
+  local required_files=(
+    "docker-compose.prod.yml"
+    "docker-compose.uiscloud.yml"
+    "docker-compose.airgap.yml"
+    ".env.example"
+  )
+
   local missing=()
-
-  for pkg in "${packages[@]}"; do
-    if ! command -v "$pkg" &>/dev/null; then
-      missing+=("$pkg")
+  for f in "${required_files[@]}"; do
+    if [ ! -f "$DEPLOY_DIR/$f" ]; then
+      missing+=("$f")
     fi
   done
 
   if [ ${#missing[@]} -gt 0 ]; then
-    log "누락된 패키지 설치: ${missing[*]}"
-    sudo apt-get update -qq
-    sudo apt-get install -y "${missing[@]}"
-  fi
-
-  log "✅ 필수 도구 확인 완료"
-}
-
-# ── Docker 설치 ───────────────────────────────────────────────────────────────
-install_docker() {
-  step "Docker 설치"
-
-  if command -v docker &>/dev/null; then
-    log "Docker 이미 설치됨: $(docker --version)"
-  else
-    log "Docker 설치 중..."
-    curl -fsSL https://get.docker.com | sudo sh
-    sudo usermod -aG docker "$USER_NAME"
-    warn "docker 그룹 적용을 위해 재로그인이 필요할 수 있습니다."
-    log "✅ Docker 설치 완료"
-  fi
-
-  if ! docker compose version &>/dev/null; then
-    log "Docker Compose v2 플러그인 설치 중..."
-    sudo apt-get update -qq
-    sudo apt-get install -y docker-compose-plugin
-  fi
-
-  log "✅ Docker Compose: $(docker compose version)"
-}
-
-# ── 배포 디렉터리 생성 ────────────────────────────────────────────────────────
-setup_directory() {
-  step "배포 디렉터리: $DEPLOY_DIR"
-
-  sudo mkdir -p "$DEPLOY_DIR"
-  sudo chown "$USER_NAME:$USER_NAME" "$DEPLOY_DIR"
-  log "✅ 디렉터리 준비 완료"
-}
-
-# ── 릴리즈 패키지 다운로드 ────────────────────────────────────────────────────
-download_release() {
-  step "배포 패키지 다운로드"
-
-  local download_url
-  local asset_name
-
-  if [ "$VERSION" = "latest" ]; then
-    # 최신 버전 태그 조회
-    VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-      | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-    log "최신 릴리즈 버전: $VERSION"
-  fi
-
-  asset_name="uiscloud-onyx.${VERSION}.tar.gz"
-  download_url="${RELEASES_URL}/download/${VERSION}/${asset_name}"
-  log "버전 ${VERSION} 다운로드 중..."
-
-  info "URL: $download_url"
-
-  local tmp_file
-  tmp_file="$(mktemp /tmp/uiscloud-onyx-XXXXXX.tar.gz)"
-
-  if ! curl -fsSL -o "$tmp_file" "$download_url"; then
-    error "다운로드 실패: $download_url"
-    error "릴리즈 목록: ${RELEASES_URL}"
-    rm -f "$tmp_file"
+    error "다음 필수 파일이 없습니다:"
+    for f in "${missing[@]}"; do
+      error "  - $f"
+    done
     exit 1
   fi
 
-  log "압축 해제 중: $DEPLOY_DIR"
-  tar xzf "$tmp_file" -C "$DEPLOY_DIR" --strip-components=1
-  rm -f "$tmp_file"
+  if [ ! -d "$DEPLOY_DIR/images" ] || \
+     [ "$(find "$DEPLOY_DIR/images" -name '*.tar' 2>/dev/null | wc -l)" -eq 0 ]; then
+    warn "images/ 디렉터리가 없거나 .tar 파일이 없습니다."
+    warn "나중에 load-images.sh를 실행하거나 --no-pull 없이 deploy.sh를 실행하세요."
+  else
+    local count
+    count=$(find "$DEPLOY_DIR/images" -name '*.tar' | wc -l)
+    log "이미지 파일: ${count}개"
+  fi
 
-  chmod +x "$DEPLOY_DIR/deploy.sh" "$DEPLOY_DIR/server-setup.sh"
+  log "✅ 패키지 파일 확인 완료"
+  info "배포 경로: $DEPLOY_DIR"
+}
 
-  log "✅ 패키지 다운로드 완료"
-  info "설치된 파일:"
-  ls -1 "$DEPLOY_DIR/"
+# ── Docker 이미지 로드 ────────────────────────────────────────────────────────
+load_images() {
+  step "Docker 이미지 로드"
+
+  local images_dir="$DEPLOY_DIR/images"
+
+  if [ ! -d "$images_dir" ] || \
+     [ "$(find "$images_dir" -name '*.tar' 2>/dev/null | wc -l)" -eq 0 ]; then
+    warn "images/ 디렉터리가 없습니다. 이미지 로드를 건너뜁니다."
+    warn "배포 전에 반드시 load-images.sh를 실행하세요."
+    return
+  fi
+
+  local load_script="$SCRIPT_DIR/load-images.sh"
+  if [ ! -f "$load_script" ]; then
+    load_script="$DEPLOY_DIR/load-images.sh"
+  fi
+
+  if [ -f "$load_script" ]; then
+    bash "$load_script"
+  else
+    warn "load-images.sh를 찾을 수 없습니다. 수동으로 로드합니다..."
+    while IFS= read -r -d '' tar_file; do
+      log "로드: $(basename "$tar_file")"
+      docker load -i "$tar_file"
+    done < <(find "$images_dir" -name "*.tar" -print0 | sort -z)
+  fi
+
+  log "✅ 이미지 로드 완료"
 }
 
 # ── 환경 설정 파일 ────────────────────────────────────────────────────────────
@@ -162,6 +177,11 @@ setup_env() {
 
   local env_file="$DEPLOY_DIR/.env"
   local example_file="$DEPLOY_DIR/.env.example"
+
+  if [ ! -f "$example_file" ]; then
+    error ".env.example 파일을 찾을 수 없습니다: $example_file"
+    exit 1
+  fi
 
   if [ ! -f "$env_file" ]; then
     cp "$example_file" "$env_file"
@@ -172,54 +192,67 @@ setup_env() {
     fi
 
     log "✅ .env 파일 생성: $env_file"
-    echo ""
-    warn "══════════════════════════════════════════════════"
-    warn "  ⚠️  .env 파일에서 다음 항목을 반드시 변경하세요"
-    warn "══════════════════════════════════════════════════"
-    warn ""
-    warn "  ENCRYPTION_KEY_SECRET  →  openssl rand -hex 32"
-    warn "  POSTGRES_PASSWORD      →  강력한 비밀번호"
-    warn "  MINIO_ROOT_PASSWORD    →  강력한 비밀번호"
-    warn "  S3_AWS_SECRET_ACCESS_KEY → MINIO_ROOT_PASSWORD와 동일"
-    warn ""
-    warn "  편집 명령: nano $env_file"
-    warn "══════════════════════════════════════════════════"
-    echo ""
   else
-    warn ".env 파일 이미 존재: 덮어쓰지 않음"
+    warn ".env 파일이 이미 존재합니다. 덮어쓰지 않습니다: $env_file"
   fi
+
+  # .env.nginx 파일 생성
+  local nginx_env="$DEPLOY_DIR/.env.nginx"
+  if [ ! -f "$nginx_env" ]; then
+    echo "DOMAIN=${DOMAIN}" > "$nginx_env"
+    log "✅ .env.nginx 파일 생성"
+  fi
+
+  echo ""
+  warn "══════════════════════════════════════════════════════"
+  warn "  ⚠️  .env 파일에서 다음 항목을 반드시 변경하세요"
+  warn "══════════════════════════════════════════════════════"
+  warn ""
+  warn "  ENCRYPTION_KEY_SECRET  →  openssl rand -hex 32"
+  warn "  POSTGRES_PASSWORD      →  강력한 비밀번호"
+  warn "  MINIO_ROOT_PASSWORD    →  강력한 비밀번호"
+  warn "  S3_AWS_SECRET_ACCESS_KEY → MINIO_ROOT_PASSWORD와 동일"
+  warn ""
+  warn "  편집: nano $env_file"
+  warn "══════════════════════════════════════════════════════"
+  echo ""
 }
 
-# ── ghcr.io 인증 설정 ─────────────────────────────────────────────────────────
-setup_registry_auth() {
-  step "GitHub Container Registry 인증"
+# ── 스크립트 실행 권한 설정 ───────────────────────────────────────────────────
+setup_permissions() {
+  step "실행 권한 설정"
 
-  info "이미지가 공개(public)이면 이 단계는 건너뛰어도 됩니다."
-  echo ""
-  read -r -p "ghcr.io 로그인이 필요합니까? [y/N]: " yn
-  if [[ "$yn" =~ ^[Yy]$ ]]; then
-    read -r -p "GitHub 사용자명: " gh_user
-    read -r -s -p "GitHub Personal Access Token (read:packages 권한): " gh_token
-    echo ""
-    echo "$gh_token" | docker login ghcr.io -u "$gh_user" --password-stdin
-    log "✅ ghcr.io 로그인 완료"
-  else
-    info "ghcr.io 인증 건너뜀"
-  fi
+  local scripts=(
+    "$DEPLOY_DIR/deploy.sh"
+    "$DEPLOY_DIR/load-images.sh"
+    "$DEPLOY_DIR/save-images.sh"
+    "$DEPLOY_DIR/server-setup.sh"
+  )
+
+  for s in "${scripts[@]}"; do
+    [ -f "$s" ] && chmod +x "$s"
+  done
+
+  log "✅ 실행 권한 설정 완료"
 }
 
 # ── 방화벽 설정 ───────────────────────────────────────────────────────────────
 setup_firewall() {
+  if [ "$SKIP_FIREWALL" = true ]; then
+    warn "방화벽 설정 건너뜀 (--skip-firewall)"
+    return
+  fi
+
   step "방화벽 설정"
 
   if command -v ufw &>/dev/null; then
-    sudo ufw allow 22/tcp comment "SSH" 2>/dev/null || true
-    sudo ufw allow 80/tcp comment "HTTP" 2>/dev/null || true
-    sudo ufw allow 443/tcp comment "HTTPS" 2>/dev/null || true
+    sudo ufw allow 22/tcp   comment "SSH"   2>/dev/null || true
+    sudo ufw allow 80/tcp   comment "HTTP"  2>/dev/null || true
+    sudo ufw allow 443/tcp  comment "HTTPS" 2>/dev/null || true
     sudo ufw --force enable 2>/dev/null || true
     log "✅ UFW 방화벽: 22, 80, 443 허용"
   else
-    warn "UFW 없음 — 수동으로 포트 22, 80, 443을 열어두세요."
+    warn "UFW가 없습니다. 수동으로 포트 22, 80, 443을 열어주세요."
   fi
 }
 
@@ -233,37 +266,33 @@ print_next_steps() {
   echo "📋 다음 단계:"
   echo ""
   echo "  1️⃣  환경 변수 설정 (필수):"
-  echo "      nano $DEPLOY_DIR/.env"
+  echo "       nano $DEPLOY_DIR/.env"
   echo ""
   echo "  2️⃣  배포 실행:"
-  echo "      bash $DEPLOY_DIR/deploy.sh"
+  echo "       bash $DEPLOY_DIR/deploy.sh"
   echo ""
   echo "  3️⃣  상태 확인:"
-  echo "      cd $DEPLOY_DIR"
-  echo "      docker compose -f docker-compose.prod.yml -f docker-compose.uiscloud.yml ps"
+  echo "       cd $DEPLOY_DIR"
+  echo "       docker compose -f docker-compose.prod.yml -f docker-compose.uiscloud.yml ps"
   echo ""
   echo "  🌐 접속 URL: http://$DOMAIN"
-  echo ""
-  echo "  📖 가이드: $DEPLOY_DIR/README.md"
   echo ""
 }
 
 # ── 메인 실행 ─────────────────────────────────────────────────────────────────
 main() {
   echo ""
-  log "🚀 UISCloud 서버 초기 설정 시작"
-  info "설치 버전: $VERSION"
-  info "설치 경로: $DEPLOY_DIR"
+  log "🚀 UISCloud 서버 초기 설정 시작 (폐쇄망)"
+  info "배포 경로: $DEPLOY_DIR"
   info "도메인:    $DOMAIN"
   echo ""
 
-  check_os
-  install_deps
-  install_docker
-  setup_directory
-  download_release
+  check_docker
+  check_docker_daemon
+  check_package
+  setup_permissions
+  load_images
   setup_env
-  setup_registry_auth
   setup_firewall
   print_next_steps
 }
