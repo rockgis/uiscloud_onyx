@@ -1,0 +1,33 @@
+name: onyx
+
+# =============================================================================
+# 릴리즈 배포 오버라이드
+#
+# 폐쇄망 배포용 최종 설정:
+#   - 외부 포트: 8082 (HTTP)  — 80/443 대신 사용
+#   - SSL/certbot 비활성화    — 폐쇄망 환경에서 불필요
+#   - nginx 설정: HTTP 전용 템플릿 사용
+#
+# 적용 순서 (deploy.sh가 자동 관리):
+#   docker compose \
+#     -f docker-compose.prod.yml \      # 기본 서비스 정의
+#     -f docker-compose.uiscloud.yml \  # 커스텀 이미지
+#     -f docker-compose.airgap.yml \    # 경로 교정 (../data/ → ./data/)
+#     -f docker-compose.release.yml     # 포트 8082, HTTP 전용 ← 이 파일
+# =============================================================================
+
+services:
+
+  # ── nginx: 포트 8082, HTTP 전용 ─────────────────────────────────────────────
+  nginx:
+    ports: !reset
+      - "${SERVICE_PORT:-8082}:80"
+    # app.conf.template.prod (SSL) 대신 app.conf.template (HTTP only) 사용
+    command: >
+      /bin/sh -c "dos2unix /etc/nginx/conf.d/run-nginx.sh
+      && /etc/nginx/conf.d/run-nginx.sh app.conf.template"
+
+  # ── certbot: 폐쇄망에서 SSL 불필요 → 즉시 종료 ──────────────────────────────
+  certbot:
+    entrypoint: /bin/sh -c "echo 'certbot disabled (HTTP mode, port ${SERVICE_PORT:-8082})' && exit 0"
+    restart: "no"

@@ -1,0 +1,5 @@
+# 생성된 배포 패키지 tarball 제외
+dist/
+
+# Docker 이미지 tar 파일 제외 (바이너리, 수 GB 크기)
+images/*.tar

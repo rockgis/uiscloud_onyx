@@ -39,6 +39,11 @@ if [ -f "$COMPOSE_DIR/docker-compose.airgap.yml" ]; then
   COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.airgap.yml"
 fi
 
+# 릴리즈 포트/모드 오버라이드 파일이 있으면 자동 포함 (포트 8082, HTTP 전용)
+if [ -f "$COMPOSE_DIR/docker-compose.release.yml" ]; then
+  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.release.yml"
+fi
+
 # ── 색상 출력 ─────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
