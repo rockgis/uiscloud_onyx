@@ -120,8 +120,15 @@ check_compose_version() {
   local major minor
   major=$(echo "$version" | cut -d. -f1)
   minor=$(echo "$version" | cut -d. -f2)
-  if [ "${major:-0}" -lt 2 ] || \
-     { [ "${major:-0}" -eq 2 ] && [ "${minor:-0}" -lt 26 ]; }; then
+  # v2.26+ 또는 v3+ 이면 !reset 지원
+  local ok=false
+  if [ "${major:-0}" -ge 3 ]; then
+    ok=true
+  elif [ "${major:-0}" -eq 2 ] && [ "${minor:-0}" -ge 26 ]; then
+    ok=true
+  fi
+
+  if [ "$ok" = false ]; then
     warn "Docker Compose v${version} 감지됨"
     warn "이 패키지는 v2.26.0 이상이 필요합니다 (!reset 문법 사용)"
     warn "업그레이드: sudo apt-get install -y docker-compose-plugin"
@@ -302,7 +309,15 @@ update_services() {
   major=$(echo "$compose_version" | cut -d. -f1)
   minor=$(echo "$compose_version" | cut -d. -f2)
 
-  if [ "${major:-0}" -ge 2 ] && [ "${minor:-0}" -ge 1 ]; then
+  # --wait 지원 여부: v2.1+ (major >= 3 이거나 major == 2 && minor >= 1)
+  local supports_wait=false
+  if [ "${major:-0}" -ge 3 ]; then
+    supports_wait=true
+  elif [ "${major:-0}" -eq 2 ] && [ "${minor:-0}" -ge 1 ]; then
+    supports_wait=true
+  fi
+
+  if [ "$supports_wait" = true ]; then
     run docker compose $COMPOSE_FILES up -d \
       --remove-orphans \
       --no-build \

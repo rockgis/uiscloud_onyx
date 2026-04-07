@@ -90,8 +90,14 @@ check_docker() {
   local dc_major dc_minor
   dc_major=$(echo "$dc_version" | cut -d. -f1)
   dc_minor=$(echo "$dc_version" | cut -d. -f2)
-  if [ "${dc_major:-0}" -lt 2 ] || \
-     { [ "${dc_major:-0}" -eq 2 ] && [ "${dc_minor:-0}" -lt 26 ]; }; then
+  local dc_ok=false
+  if [ "${dc_major:-0}" -ge 3 ]; then
+    dc_ok=true
+  elif [ "${dc_major:-0}" -eq 2 ] && [ "${dc_minor:-0}" -ge 26 ]; then
+    dc_ok=true
+  fi
+
+  if [ "$dc_ok" = false ]; then
     warn "⚠️  Docker Compose v${dc_version} 감지됨"
     warn "이 패키지는 v2.26.0 이상이 필요합니다 (!reset 문법 사용)"
     warn "업그레이드:"
@@ -118,47 +124,72 @@ setup_qemu() {
     return
   fi
 
-  # arm64 서버: amd64 이미지 실행을 위해 QEMU binfmt_misc 필요
-  if [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then
-    warn "arm64 서버 감지됨"
-    warn "UISCloud 이미지는 linux/amd64 전용입니다."
-    warn "QEMU 에뮬레이션을 설정합니다..."
-    echo ""
+  # arm64 이외 아키텍처는 경고만
+  if [ "$arch" != "aarch64" ] && [ "$arch" != "arm64" ]; then
+    warn "알 수 없는 아키텍처($arch): QEMU 설정을 건너뜁니다."
+    return
+  fi
 
-    # 이미 설정된 경우 스킵
-    if [ -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
-      log "✅ QEMU binfmt_misc (x86_64) 이미 등록됨"
-      return
-    fi
+  warn "arm64 서버 감지됨"
+  warn "UISCloud 이미지는 linux/amd64 전용입니다."
+  warn "QEMU 에뮬레이션을 설정합니다..."
+  echo ""
 
-    # 방법 1: qemu-user-static 패키지 설치 (오프라인 가능)
-    if command -v apt-get &>/dev/null; then
-      log "qemu-user-static 패키지 설치 중..."
-      if sudo apt-get install -y qemu-user-static 2>/dev/null; then
-        # binfmt 수동 등록 (패키지만으로 Docker 내부 에뮬레이션이 안 될 수 있음)
-        sudo docker run --rm --privileged \
-          multiarch/qemu-user-static --reset -p yes 2>/dev/null || true
-        log "✅ QEMU 설치 완료"
+  # binfmt_misc 마운트 확인
+  if ! mount | grep -q binfmt_misc; then
+    log "binfmt_misc 마운트 중..."
+    sudo mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+  fi
+
+  # 이미 설정된 경우 스킵
+  if [ -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+    log "✅ QEMU binfmt_misc (x86_64) 이미 등록됨"
+    return
+  fi
+
+  # ── 방법 1: multiarch/qemu-user-static Docker 이미지 (가장 확실) ────────────
+  # 이미지가 로컬에 있으면 인터넷 없이 실행 가능
+  if docker image inspect multiarch/qemu-user-static &>/dev/null 2>&1; then
+    log "multiarch/qemu-user-static 이미지로 binfmt 등록 중..."
+    if docker run --rm --privileged multiarch/qemu-user-static --reset -p yes; then
+      if [ -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+        log "✅ QEMU binfmt_misc 등록 완료"
         return
       fi
     fi
+    warn "Docker 방식 실패. 다른 방법을 시도합니다..."
+  fi
 
-    # 방법 2: Docker 방식 (인터넷 필요)
-    log "Docker를 통한 QEMU binfmt 등록 시도..."
-    if docker run --rm --privileged \
-         multiarch/qemu-user-static --reset -p yes 2>/dev/null; then
-      log "✅ QEMU binfmt_misc 등록 완료"
-    else
-      warn "⚠️  QEMU 자동 설정 실패. 다음 중 하나를 수동으로 실행하세요:"
-      warn ""
-      warn "  # 방법 1: 패키지 설치"
-      warn "  sudo apt-get install -y qemu-user-static"
-      warn ""
-      warn "  # 방법 2: Docker (인터넷 필요)"
-      warn "  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes"
-      warn ""
-      warn "  설정 후 server-setup.sh 를 다시 실행하거나 deploy.sh 를 실행하세요."
+  # ── 방법 2: qemu-user-static 패키지 + binfmt-support ────────────────────────
+  if command -v apt-get &>/dev/null; then
+    log "qemu-user-static, binfmt-support 패키지 설치 중..."
+    sudo apt-get install -y qemu-user-static binfmt-support
+
+    # binfmts 수동 활성화
+    if command -v update-binfmts &>/dev/null; then
+      sudo update-binfmts --enable qemu-x86_64 2>/dev/null || \
+      sudo update-binfmts --enable 2>/dev/null || true
     fi
+
+    # systemd-binfmt 재시작
+    if command -v systemctl &>/dev/null; then
+      sudo systemctl restart systemd-binfmt 2>/dev/null || true
+    fi
+  fi
+
+  # ── 등록 최종 확인 ───────────────────────────────────────────────────────────
+  if [ -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+    log "✅ QEMU binfmt_misc (x86_64) 등록 완료"
+  else
+    error "❌ QEMU binfmt_misc 등록 실패"
+    error ""
+    error "수동으로 다음 명령을 실행한 뒤 deploy.sh를 실행하세요:"
+    error ""
+    error "  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes"
+    error ""
+    error "  # 등록 확인:"
+    error "  ls /proc/sys/fs/binfmt_misc/qemu-x86_64"
+    exit 1
   fi
 }
 
