@@ -131,9 +131,9 @@ copy_env_template() {
 
   # 버전 태그가 있으면 이미지 태그를 릴리즈 버전으로 고정
   if [[ "$VERSION" =~ ^v[0-9] ]]; then
-    sed -i "s|web-server:latest|web-server:${VERSION}|g"              "$PKG_DIR/.env.example"
-    sed -i "s|onyx-backend:latest|onyx-backend:${VERSION}|g"          "$PKG_DIR/.env.example"
-    sed -i "s|onyx-model-server:latest|onyx-model-server:${VERSION}|g" "$PKG_DIR/.env.example"
+    perl -i -pe "s|web-server:latest|web-server:${VERSION}|g"              "$PKG_DIR/.env.example"
+    perl -i -pe "s|onyx-backend:latest|onyx-backend:${VERSION}|g"          "$PKG_DIR/.env.example"
+    perl -i -pe "s|onyx-model-server:latest|onyx-model-server:${VERSION}|g" "$PKG_DIR/.env.example"
     info "  ✅ .env.example (이미지 태그: $VERSION 고정)"
   else
     info "  ✅ .env.example (이미지 태그: latest)"
