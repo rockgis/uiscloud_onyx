@@ -114,6 +114,8 @@ copy_scripts() {
   cp "$src/load-images.sh"   "$PKG_DIR/"
   cp "$src/save-images.sh"   "$PKG_DIR/"
   cp "$src/server-setup.sh"  "$PKG_DIR/"
+  cp "$src/start.sh"         "$PKG_DIR/"
+  cp "$src/stop.sh"          "$PKG_DIR/"
 
   chmod +x "$PKG_DIR"/*.sh
 
@@ -121,6 +123,8 @@ copy_scripts() {
   info "  ✅ load-images.sh"
   info "  ✅ save-images.sh"
   info "  ✅ server-setup.sh"
+  info "  ✅ start.sh"
+  info "  ✅ stop.sh"
 }
 
 # ── 환경변수 템플릿 복사 ──────────────────────────────────────────────────────
