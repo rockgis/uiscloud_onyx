@@ -83,6 +83,24 @@ check_docker() {
   fi
 
   log "Docker Compose: $(docker compose version)"
+
+  # v2.26.0 미만이면 !reset 문법 미지원 경고
+  local dc_version
+  dc_version=$(docker compose version --short 2>/dev/null || echo "0.0.0")
+  local dc_major dc_minor
+  dc_major=$(echo "$dc_version" | cut -d. -f1)
+  dc_minor=$(echo "$dc_version" | cut -d. -f2)
+  if [ "${dc_major:-0}" -lt 2 ] || \
+     { [ "${dc_major:-0}" -eq 2 ] && [ "${dc_minor:-0}" -lt 26 ]; }; then
+    warn "⚠️  Docker Compose v${dc_version} 감지됨"
+    warn "이 패키지는 v2.26.0 이상이 필요합니다 (!reset 문법 사용)"
+    warn "업그레이드:"
+    warn "  sudo apt-get update && sudo apt-get install -y docker-compose-plugin"
+    warn "계속 진행하면 배포가 실패할 수 있습니다."
+  else
+    log "Docker Compose v${dc_version} ✅"
+  fi
+
   log "✅ Docker 확인 완료"
 }
 
@@ -246,13 +264,14 @@ setup_firewall() {
   step "방화벽 설정"
 
   if command -v ufw &>/dev/null; then
-    sudo ufw allow 22/tcp   comment "SSH"   2>/dev/null || true
-    sudo ufw allow 80/tcp   comment "HTTP"  2>/dev/null || true
-    sudo ufw allow 443/tcp  comment "HTTPS" 2>/dev/null || true
+    sudo ufw allow 22/tcp   comment "SSH"            2>/dev/null || true
+    sudo ufw allow 80/tcp   comment "HTTP"           2>/dev/null || true
+    sudo ufw allow 443/tcp  comment "HTTPS"          2>/dev/null || true
+    sudo ufw allow 8082/tcp comment "UISCloud HTTP"  2>/dev/null || true
     sudo ufw --force enable 2>/dev/null || true
-    log "✅ UFW 방화벽: 22, 80, 443 허용"
+    log "✅ UFW 방화벽: 22, 80, 443, 8082 허용"
   else
-    warn "UFW가 없습니다. 수동으로 포트 22, 80, 443을 열어주세요."
+    warn "UFW가 없습니다. 수동으로 포트 22, 80, 443, 8082를 열어주세요."
   fi
 }
 
@@ -275,7 +294,15 @@ print_next_steps() {
   echo "       cd $DEPLOY_DIR"
   echo "       docker compose -f docker-compose.prod.yml -f docker-compose.uiscloud.yml ps"
   echo ""
-  echo "  🌐 접속 URL: http://$DOMAIN"
+  local port
+  port=$(grep '^SERVICE_PORT=' "$DEPLOY_DIR/.env" 2>/dev/null \
+    | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ' || true)
+  port="${port:-8082}"
+  if [ "$port" = "80" ]; then
+    echo "  🌐 접속 URL: http://$DOMAIN"
+  else
+    echo "  🌐 접속 URL: http://$DOMAIN:$port"
+  fi
   echo ""
 }
 

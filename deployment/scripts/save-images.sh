@@ -31,6 +31,10 @@ fi
 IMAGE_TAG="${1:-main}"
 IMAGES_DIR="$BASE_DIR/images"
 
+# 배포 대상 플랫폼 (폐쇄망 서버는 통상 linux/amd64)
+# arm64 Mac에서 amd64 이미지를 저장할 수 있도록 플랫폼 명시
+TARGET_PLATFORM="${TARGET_PLATFORM:-linux/amd64}"
+
 # ── 색상 출력 ─────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -74,8 +78,8 @@ save_image() {
     warn "이미 존재: $filename (덮어씁니다...)"
   fi
 
-  log "풀 중: $image"
-  if ! docker pull "$image"; then
+  log "풀 중: $image (플랫폼: $TARGET_PLATFORM)"
+  if ! docker pull --platform "$TARGET_PLATFORM" "$image"; then
     error "풀 실패: $image"
     return 1
   fi
