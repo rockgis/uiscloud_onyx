@@ -31,6 +31,9 @@ fi
 COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.uiscloud.yml"
 [ -f "$COMPOSE_DIR/docker-compose.airgap.yml" ]  && COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.airgap.yml"
 [ -f "$COMPOSE_DIR/docker-compose.release.yml" ] && COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.release.yml"
+if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then
+  [ -f "$COMPOSE_DIR/docker-compose.arm64.yml" ] && COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.arm64.yml"
+fi
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
 log()   { echo -e "${GREEN}[$(date '+%H:%M:%S')]${NC} $*"; }

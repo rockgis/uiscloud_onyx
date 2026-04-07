@@ -27,6 +27,9 @@ COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.uiscloud.yml"
 [ -f "$COMPOSE_DIR/docker-compose.airgap.yml" ]   && COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.airgap.yml"
 RELEASE_MODE=false
 [ -f "$COMPOSE_DIR/docker-compose.release.yml" ]  && { COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.release.yml"; RELEASE_MODE=true; }
+if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then
+  [ -f "$COMPOSE_DIR/docker-compose.arm64.yml" ] && COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.arm64.yml"
+fi
 
 detect_service_port() {
   local port=""

@@ -1,0 +1,40 @@
+name: onyx
+
+# =============================================================================
+# ARM64 서버 전용 오버라이드
+#
+# arm64(aarch64) 서버에서 서드파티 이미지를 native arm64로 강제 지정합니다.
+# QEMU 에뮬레이션으로는 Vespa(JVM), nginx 등이 AVX/SSE4.2 명령어 때문에
+# SIGSEGV로 crash되므로 native 이미지를 사용해야 합니다.
+#
+# 주요 변경:
+#   - 모든 서드파티 서비스에 platform: linux/arm64 명시
+#   - minio: -cpuv1 태그(x86 전용) → 표준 multi-arch 태그로 교체
+#
+# deploy.sh 가 arm64 서버에서 자동으로 이 파일을 포함합니다.
+# =============================================================================
+
+services:
+
+  relational_db:
+    platform: linux/arm64
+
+  cache:
+    platform: linux/arm64
+
+  index:
+    platform: linux/arm64
+
+  nginx:
+    platform: linux/arm64
+
+  certbot:
+    platform: linux/arm64
+
+  # minio: -cpuv1 태그는 x86(non-AVX2) 전용 → arm64용 표준 태그로 교체
+  minio:
+    platform: linux/arm64
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+
+  code-interpreter:
+    platform: linux/arm64

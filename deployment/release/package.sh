@@ -76,11 +76,13 @@ copy_compose_files() {
   cp "$src/docker-compose.prod.yml"      "$PKG_DIR/"
   cp "$src/docker-compose.uiscloud.yml"  "$PKG_DIR/"
   cp "$src/docker-compose.airgap.yml"    "$PKG_DIR/"
+  cp "$src/docker-compose.arm64.yml"     "$PKG_DIR/"
   cp "$RELEASE_DIR/docker-compose.release.yml" "$PKG_DIR/"
 
   info "  ✅ docker-compose.prod.yml"
   info "  ✅ docker-compose.uiscloud.yml"
   info "  ✅ docker-compose.airgap.yml"
+  info "  ✅ docker-compose.arm64.yml"
   info "  ✅ docker-compose.release.yml"
 }
 

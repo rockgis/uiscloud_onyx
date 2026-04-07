@@ -46,6 +46,15 @@ if [ -f "$COMPOSE_DIR/docker-compose.release.yml" ]; then
   RELEASE_MODE=true
 fi
 
+# arm64 서버: 서드파티 이미지를 native arm64로 강제 지정
+ARM64_MODE=false
+if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then
+  if [ -f "$COMPOSE_DIR/docker-compose.arm64.yml" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.arm64.yml"
+    ARM64_MODE=true
+  fi
+fi
+
 # ── 서비스 포트 결정 ──────────────────────────────────────────────────────────
 # .env 의 SERVICE_PORT → 릴리즈 기본값 8082 → 표준 80 순서로 결정
 detect_service_port() {
@@ -425,6 +434,7 @@ main() {
   [ "$ROLLBACK"     = true ] && warn "ROLLBACK 모드"
   [ "$AIRGAP"       = true ] && info "폐쇄망(AIR-GAP) 모드"
   [ "$RELEASE_MODE" = true ] && info "릴리즈 모드 (포트: ${SERVICE_PORT})"
+  [ "$ARM64_MODE"   = true ] && info "ARM64 모드 (서드파티 이미지 native arm64 사용)"
   echo ""
 
   check_prerequisites
