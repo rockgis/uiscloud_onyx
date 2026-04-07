@@ -154,6 +154,23 @@ check_prerequisites() {
     exit 1
   fi
 
+  # arm64 서버에서 QEMU 미설정 경고
+  local arch
+  arch=$(uname -m)
+  if [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then
+    if [ ! -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+      warn "⚠️  arm64 서버에서 QEMU binfmt_misc 미설정 감지"
+      warn "UISCloud 이미지(linux/amd64)가 실행되지 않을 수 있습니다."
+      warn "먼저 server-setup.sh 를 실행하거나 다음 명령을 수동으로 실행하세요:"
+      warn "  sudo apt-get install -y qemu-user-static"
+      warn "  또는: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes"
+      warn "5초 후 계속합니다..."
+      sleep 5
+    else
+      log "QEMU binfmt_misc (x86_64) 확인 ✅"
+    fi
+  fi
+
   if [ ! -f "$COMPOSE_DIR/.env" ]; then
     error ".env 파일이 없습니다. 먼저 다음을 실행하세요:"
     error "  cp .env.example .env"

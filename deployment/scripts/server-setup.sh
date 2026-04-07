@@ -104,6 +104,64 @@ check_docker() {
   log "✅ Docker 확인 완료"
 }
 
+# ── QEMU 에뮬레이션 설정 (arm64 서버에서 amd64 이미지 실행) ──────────────────
+setup_qemu() {
+  step "아키텍처 확인 및 QEMU 설정"
+
+  local arch
+  arch=$(uname -m)
+  info "서버 아키텍처: $arch"
+
+  # amd64(x86_64) 서버는 QEMU 불필요
+  if [ "$arch" = "x86_64" ]; then
+    log "✅ x86_64 서버 - QEMU 불필요"
+    return
+  fi
+
+  # arm64 서버: amd64 이미지 실행을 위해 QEMU binfmt_misc 필요
+  if [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then
+    warn "arm64 서버 감지됨"
+    warn "UISCloud 이미지는 linux/amd64 전용입니다."
+    warn "QEMU 에뮬레이션을 설정합니다..."
+    echo ""
+
+    # 이미 설정된 경우 스킵
+    if [ -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+      log "✅ QEMU binfmt_misc (x86_64) 이미 등록됨"
+      return
+    fi
+
+    # 방법 1: qemu-user-static 패키지 설치 (오프라인 가능)
+    if command -v apt-get &>/dev/null; then
+      log "qemu-user-static 패키지 설치 중..."
+      if sudo apt-get install -y qemu-user-static 2>/dev/null; then
+        # binfmt 수동 등록 (패키지만으로 Docker 내부 에뮬레이션이 안 될 수 있음)
+        sudo docker run --rm --privileged \
+          multiarch/qemu-user-static --reset -p yes 2>/dev/null || true
+        log "✅ QEMU 설치 완료"
+        return
+      fi
+    fi
+
+    # 방법 2: Docker 방식 (인터넷 필요)
+    log "Docker를 통한 QEMU binfmt 등록 시도..."
+    if docker run --rm --privileged \
+         multiarch/qemu-user-static --reset -p yes 2>/dev/null; then
+      log "✅ QEMU binfmt_misc 등록 완료"
+    else
+      warn "⚠️  QEMU 자동 설정 실패. 다음 중 하나를 수동으로 실행하세요:"
+      warn ""
+      warn "  # 방법 1: 패키지 설치"
+      warn "  sudo apt-get install -y qemu-user-static"
+      warn ""
+      warn "  # 방법 2: Docker (인터넷 필요)"
+      warn "  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes"
+      warn ""
+      warn "  설정 후 server-setup.sh 를 다시 실행하거나 deploy.sh 를 실행하세요."
+    fi
+  fi
+}
+
 # ── Docker 데몬 실행 확인 ─────────────────────────────────────────────────────
 check_docker_daemon() {
   step "Docker 데몬 확인"
@@ -316,6 +374,7 @@ main() {
 
   check_docker
   check_docker_daemon
+  setup_qemu
   check_package
   setup_permissions
   load_images
