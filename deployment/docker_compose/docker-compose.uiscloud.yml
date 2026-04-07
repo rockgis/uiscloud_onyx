@@ -19,27 +19,32 @@ services:
     # CI/CD 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/web-server
     image: ${UISCLOUD_WEB_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/web-server:latest}
     build: !reset null
+    platform: linux/amd64
 
   api_server:
     # CI/CD 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/onyx-backend
     # 변경사항: 임베딩 모델 변경 API(set-new-search-settings) 활성화
     image: ${UISCLOUD_BACKEND_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-backend:latest}
     build: !reset null
+    platform: linux/amd64
 
   background:
     # api_server와 동일한 backend 이미지 사용
     image: ${UISCLOUD_BACKEND_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-backend:latest}
     build: !reset null
+    platform: linux/amd64
 
   inference_model_server:
     # CI/CD 자동 빌드: ghcr.io/rockgis/uiscloud_onyx/onyx-model-server
     # 변경사항: BGE-M3 사전 탑재, 모델 로딩 이벤트 루프 블로킹 수정
     image: ${UISCLOUD_MODEL_SERVER_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-model-server:latest}
     build: !reset null
+    platform: linux/amd64
 
   indexing_model_server:
     image: ${UISCLOUD_MODEL_SERVER_IMAGE:-ghcr.io/rockgis/uiscloud_onyx/onyx-model-server:latest}
     build: !reset null
+    platform: linux/amd64
 
   # ── 프로덕션 보안: 내부 서비스 포트 노출 제거 ─────────────────────────────
   # nginx만 외부에 노출하고 내부 서비스는 Docker 네트워크 내부에서만 통신

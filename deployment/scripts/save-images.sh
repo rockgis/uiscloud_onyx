@@ -2,9 +2,10 @@
 # =============================================================================
 # 폐쇄망 배포용 Docker 이미지 저장 스크립트
 #
-# 인터넷이 가능한 환경에서 실행하여 모든 Docker 이미지를 .tar 파일로 저장합니다.
-# 저장된 이미지를 images/ 디렉터리와 함께 폐쇄망 서버로 전송한 뒤,
-# load-images.sh 로 로드합니다.
+# UISCloud 커스텀 이미지(web-server, onyx-backend, onyx-model-server)만 저장합니다.
+# 서드파티 이미지(postgres, redis, nginx 등)는 Docker Hub에서 직접 pull 가능하므로
+# 저장에서 제외합니다. 완전한 폐쇄망 환경이라면 서버에서 직접 pull해 두거나
+# 별도로 저장하세요.
 #
 # 사용법:
 #   ./save-images.sh                # 기본 태그(main) 사용
@@ -51,21 +52,11 @@ error() { echo -e "${RED}[$(date '+%H:%M:%S')] ERROR:${NC} $*" >&2; }
 REGISTRY="ghcr.io/rockgis/uiscloud_onyx"
 
 # UISCloud 커스텀 이미지 (형식: "이미지명|파일명.tar")
+# 서드파티 이미지(postgres, redis, nginx 등)는 Docker Hub에서 직접 pull 가능하므로 제외
 CUSTOM_IMAGES=(
   "${REGISTRY}/web-server:${IMAGE_TAG}|web-server.tar"
   "${REGISTRY}/onyx-backend:${IMAGE_TAG}|onyx-backend.tar"
   "${REGISTRY}/onyx-model-server:${IMAGE_TAG}|onyx-model-server.tar"
-)
-
-# 서드파티 이미지 (버전 고정)
-THIRD_PARTY_IMAGES=(
-  "postgres:15.2-alpine|postgres.tar"
-  "redis:7.4-alpine|redis.tar"
-  "nginx:1.25.5-alpine|nginx.tar"
-  "vespaengine/vespa:8.609.39|vespa.tar"
-  "minio/minio:RELEASE.2025-07-23T15-54-02Z-cpuv1|minio.tar"
-  "certbot/certbot:latest|certbot.tar"
-  "onyxdotapp/code-interpreter:latest|code-interpreter.tar"
 )
 
 # ── 이미지 풀 & 저장 ──────────────────────────────────────────────────────────
@@ -109,20 +100,9 @@ main() {
 
   local failed=0
 
-  # UISCloud 커스텀 이미지
+  # UISCloud 커스텀 이미지 (서드파티는 Docker Hub에서 직접 pull)
   log "── UISCloud 커스텀 이미지 ──────────────────────────"
   for entry in "${CUSTOM_IMAGES[@]}"; do
-    IFS='|' read -r image filename <<< "$entry"
-    if ! save_image "$image" "$filename"; then
-      failed=$((failed + 1))
-    fi
-  done
-
-  echo ""
-
-  # 서드파티 이미지
-  log "── 서드파티 이미지 ─────────────────────────────────"
-  for entry in "${THIRD_PARTY_IMAGES[@]}"; do
     IFS='|' read -r image filename <<< "$entry"
     if ! save_image "$image" "$filename"; then
       failed=$((failed + 1))
@@ -134,8 +114,9 @@ main() {
     echo "# UISCloud 이미지 매니페스트"
     echo "# 생성: $(date)"
     echo "# 이미지 태그: $IMAGE_TAG"
+    echo "# 참고: 서드파티 이미지(postgres, redis, nginx 등)는 배포 시 자동 pull"
     echo ""
-    for entry in "${CUSTOM_IMAGES[@]}" "${THIRD_PARTY_IMAGES[@]}"; do
+    for entry in "${CUSTOM_IMAGES[@]}"; do
       IFS='|' read -r image filename <<< "$entry"
       echo "$filename|$image"
     done
