@@ -129,21 +129,29 @@ copy_env_template() {
 
   cp "$DEPLOY_DIR/docker_compose/.env.uiscloud.example" "$PKG_DIR/.env.example"
 
-  # 버전 태그가 있으면 이미지 태그를 릴리즈 버전으로 고정
-  if [[ "$VERSION" =~ ^v[0-9] ]]; then
-    perl -i -pe "s|web-server:latest|web-server:${VERSION}|g"              "$PKG_DIR/.env.example"
-    perl -i -pe "s|onyx-backend:latest|onyx-backend:${VERSION}|g"          "$PKG_DIR/.env.example"
-    perl -i -pe "s|onyx-model-server:latest|onyx-model-server:${VERSION}|g" "$PKG_DIR/.env.example"
-    info "  ✅ .env.example (이미지 태그: $VERSION 고정)"
+  # 이미지 태그 결정:
+  #   --with-images 사용 시 → 실제 저장된 이미지 태그(IMAGE_TAG) 사용
+  #   릴리즈 버전만 지정 시 → 버전 태그(v1.x.x) 사용 (레지스트리에서 pull)
+  #   그 외 → latest 유지
+  local effective_tag
+  if [ "$WITH_IMAGES" = true ]; then
+    effective_tag="$IMAGE_TAG"
+  elif [[ "$VERSION" =~ ^v[0-9] ]]; then
+    effective_tag="$VERSION"
   else
-    info "  ✅ .env.example (이미지 태그: latest)"
+    effective_tag="latest"
   fi
+
+  perl -i -pe "s|web-server:latest|web-server:${effective_tag}|g"              "$PKG_DIR/.env.example"
+  perl -i -pe "s|onyx-backend:latest|onyx-backend:${effective_tag}|g"          "$PKG_DIR/.env.example"
+  perl -i -pe "s|onyx-model-server:latest|onyx-model-server:${effective_tag}|g" "$PKG_DIR/.env.example"
+  info "  ✅ .env.example (이미지 태그: ${effective_tag})"
 
   # images 디렉터리 placeholder
   touch "$PKG_DIR/images/.gitkeep"
 }
 
-# ── 이미지 저장 (선택) ────────────────────────────────────────────────────────
+# ── 이미지 복사/저장 (선택) ───────────────────────────────────────────────────
 save_images() {
   if [ "$WITH_IMAGES" = false ]; then
     warn "이미지 저장 생략 (--with-images 미지정)"
@@ -152,9 +160,22 @@ save_images() {
     return
   fi
 
-  log "Docker 이미지 저장 중 (태그: $IMAGE_TAG)..."
-  IMAGE_TAG="$IMAGE_TAG" bash "$PKG_DIR/save-images.sh" "$IMAGE_TAG"
-  log "✅ 이미지 저장 완료"
+  local src_images="$DEPLOY_DIR/images"
+  local dst_images="$PKG_DIR/images"
+
+  # 이미 저장된 이미지가 있으면 복사 (재다운로드 생략)
+  local existing_count
+  existing_count=$(find "$src_images" -maxdepth 1 -name "*.tar" 2>/dev/null | wc -l | tr -d ' ')
+
+  if [ "$existing_count" -gt 0 ]; then
+    log "이미 저장된 이미지 발견 (${existing_count}개) → 복사 중..."
+    cp "$src_images"/*.tar "$dst_images/"
+    log "✅ 이미지 복사 완료"
+  else
+    log "Docker 이미지 저장 중 (태그: $IMAGE_TAG)..."
+    IMAGE_TAG="$IMAGE_TAG" bash "$PKG_DIR/save-images.sh" "$IMAGE_TAG"
+    log "✅ 이미지 저장 완료"
+  fi
 }
 
 # ── tarball 생성 ──────────────────────────────────────────────────────────────
