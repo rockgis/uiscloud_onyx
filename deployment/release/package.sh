@@ -94,7 +94,15 @@ copy_compose_files() {
   # 2) nginx 포트: 80:80 → SERVICE_PORT:80, 443:443 제거
   perl -i -pe 's|"80:80"|"\${SERVICE_PORT:-8082}:80"|' "$PKG_DIR/docker-compose.prod.yml"
   perl -i -ne 'print unless /^\s+- "443:443"/' "$PKG_DIR/docker-compose.prod.yml"
-  info "  ✅ docker-compose.prod.yml (경로·포트 교정)"
+  # 3) build-on-server 모드: build: 섹션 완전 제거
+  #    Docker Compose v5가 prod.yml의 build.context(../../backend 등)를 절대경로로
+  #    먼저 해석한 뒤 override가 무시되는 문제를 원천 차단
+  if [ "$BUILD_ON_SERVER" = true ]; then
+    perl -i -0pe 's/\n    build:\n( {6,}[^\n]*\n)+//g' "$PKG_DIR/docker-compose.prod.yml"
+    info "  ✅ docker-compose.prod.yml (경로·포트 교정 + build 섹션 제거)"
+  else
+    info "  ✅ docker-compose.prod.yml (경로·포트 교정)"
+  fi
 
   if [ "$BUILD_ON_SERVER" = true ]; then
     # 서버 빌드 모드: build-local.yml 사용 (uiscloud.yml 불필요)
