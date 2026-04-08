@@ -100,8 +100,9 @@ copy_nginx_configs() {
   cp "$src/app.conf.template"             "$dst/"
   # SSL 템플릿 (참고용)
   cp "$src/app.conf.template.prod"        "$dst/"
-  # 실행 스크립트
+  # 실행 스크립트 (실행 권한 명시)
   cp "$src/run-nginx.sh"                  "$dst/"
+  chmod +x "$dst/run-nginx.sh"
   # MCP 설정 템플릿
   cp "$src/mcp_upstream.conf.inc.template" "$dst/"
   cp "$src/mcp.conf.inc.template"          "$dst/"
