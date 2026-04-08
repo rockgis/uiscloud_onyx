@@ -8,9 +8,10 @@
 # 별도로 저장하세요.
 #
 # 사용법:
-#   ./save-images.sh                # 기본 태그(main) 사용
-#   ./save-images.sh main           # main 브랜치 빌드 사용
-#   ./save-images.sh sha-a1b3fb7    # 특정 커밋 사용
+#   ./save-images.sh                         # 기본 태그(main), 기본 플랫폼(amd64)
+#   ./save-images.sh main                    # main 브랜치 빌드 사용
+#   ./save-images.sh main linux/arm64        # arm64 서버용 이미지 저장
+#   ./save-images.sh sha-a1b3fb7 linux/amd64 # 특정 커밋, amd64
 #
 # 요구사항:
 #   - Docker 설치된 인터넷 연결 환경
@@ -32,9 +33,10 @@ fi
 IMAGE_TAG="${1:-main}"
 IMAGES_DIR="$BASE_DIR/images"
 
-# 배포 대상 플랫폼 (폐쇄망 서버는 통상 linux/amd64)
-# arm64 Mac에서 amd64 이미지를 저장할 수 있도록 플랫폼 명시
-TARGET_PLATFORM="${TARGET_PLATFORM:-linux/amd64}"
+# 배포 대상 플랫폼
+# - linux/amd64: x86_64 서버 (기본)
+# - linux/arm64: ARM64 서버 (예: AWS Graviton, Apple Silicon 기반 서버)
+TARGET_PLATFORM="${2:-${TARGET_PLATFORM:-linux/amd64}}"
 
 # ── 색상 출력 ─────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
