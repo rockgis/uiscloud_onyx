@@ -21,7 +21,9 @@ services:
   web_server:
     image: uiscloud/web-server:local
     build:
-      context: ./web
+      # UISCLOUD_BUILD_CONTEXT: build.sh가 자동 설정 (패키지 루트 절대경로)
+      # 미설정 시 docker compose 실행 위치 기준 ./web
+      context: ${UISCLOUD_BUILD_CONTEXT:-.}/web
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_DISABLE_LOGOUT=
@@ -31,7 +33,7 @@ services:
   api_server:
     image: uiscloud/onyx-backend:local
     build:
-      context: ./backend
+      context: ${UISCLOUD_BUILD_CONTEXT:-.}/backend
       dockerfile: Dockerfile
 
   background:
@@ -41,7 +43,7 @@ services:
   inference_model_server:
     image: uiscloud/onyx-model-server:local
     build:
-      context: ./backend
+      context: ${UISCLOUD_BUILD_CONTEXT:-.}/backend
       dockerfile: Dockerfile.model_server
 
   indexing_model_server:

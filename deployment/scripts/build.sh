@@ -79,6 +79,10 @@ main() {
 
   cd "$COMPOSE_DIR"
 
+  # Docker Compose v5가 prod.yml의 build.context(../../backend)를 먼저 절대경로로
+  # 해석하는 문제를 방지: 명시적 절대경로를 환경변수로 전달
+  export UISCLOUD_BUILD_CONTEXT="$COMPOSE_DIR"
+
   log "Docker 이미지 빌드 중..."
   info "  • uiscloud/web-server:local"
   info "  • uiscloud/onyx-backend:local"
