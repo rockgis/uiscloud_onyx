@@ -17,15 +17,13 @@ name: onyx
 
 services:
 
-  # nginx: ../data/nginx → ./data/nginx
+  # nginx: ../data/nginx → ./data/nginx (certbot 볼륨 제외 - 폐쇄망 HTTP 전용)
   nginx:
     volumes: !reset
       - ./data/nginx:/etc/nginx/conf.d
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
 
-  # certbot: ../data/certbot → ./data/certbot
+  # certbot: 폐쇄망 환경에서 불필요 → 즉시 종료
   certbot:
-    volumes: !reset
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
+    entrypoint: /bin/sh -c "exit 0"
+    restart: "no"
+    volumes: !reset []

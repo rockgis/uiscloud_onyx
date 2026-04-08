@@ -27,7 +27,9 @@ services:
       /bin/sh -c "dos2unix /etc/nginx/conf.d/run-nginx.sh
       && /etc/nginx/conf.d/run-nginx.sh app.conf.template"
 
-  # ── certbot: 폐쇄망에서 SSL 불필요 → 즉시 종료 ──────────────────────────────
+  # ── certbot: 폐쇄망 HTTP 전용 → 서비스 비활성화 ────────────────────────────
+  # (docker-compose.airgap.yml에서 이미 비활성화. 중복 적용으로 확실히 제거)
   certbot:
-    entrypoint: /bin/sh -c "echo 'certbot disabled (HTTP mode, port ${SERVICE_PORT:-8082})' && exit 0"
+    entrypoint: /bin/sh -c "exit 0"
     restart: "no"
+    volumes: !reset []

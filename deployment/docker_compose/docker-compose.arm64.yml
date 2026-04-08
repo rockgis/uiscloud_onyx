@@ -28,9 +28,6 @@ services:
   nginx:
     platform: linux/arm64
 
-  certbot:
-    platform: linux/arm64
-
   # minio: -cpuv1 태그는 x86(non-AVX2) 전용 → arm64용 표준 태그로 교체
   minio:
     platform: linux/arm64
