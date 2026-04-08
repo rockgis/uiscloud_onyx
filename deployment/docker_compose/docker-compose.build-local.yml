@@ -1,0 +1,62 @@
+name: onyx
+
+# =============================================================================
+# 서버 로컬 빌드 오버라이드
+#
+# 인터넷 연결된 서버에서 소스코드로 직접 이미지를 빌드합니다.
+# 호스트 아키텍처(amd64/arm64)에 맞는 네이티브 이미지가 자동 생성됩니다.
+#
+# 사용 순서:
+#   1. bash build.sh           ← 이미지 빌드 (최초 1회 또는 업데이트 시)
+#   2. bash deploy.sh          ← 서비스 배포
+#
+# 이 파일이 존재하면 deploy.sh가 자동으로 빌드 로컬 모드로 동작합니다.
+# (docker-compose.uiscloud.yml 대신 이 파일을 사용)
+# =============================================================================
+
+services:
+
+  # ── UISCloud 커스텀 이미지 (로컬 빌드) ────────────────────────────────────────
+
+  web_server:
+    image: uiscloud/web-server:local
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_DISABLE_LOGOUT=
+        - NEXT_PUBLIC_THEME=
+        - NEXT_PUBLIC_FORGOT_PASSWORD_ENABLED=
+
+  api_server:
+    image: uiscloud/onyx-backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+  background:
+    image: uiscloud/onyx-backend:local
+    # build는 api_server에서 처리 (동일 이미지)
+
+  inference_model_server:
+    image: uiscloud/onyx-model-server:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.model_server
+
+  indexing_model_server:
+    image: uiscloud/onyx-model-server:local
+    # build는 inference_model_server에서 처리 (동일 이미지)
+
+  # ── 프로덕션 보안: 내부 서비스 포트 노출 제거 ─────────────────────────────────
+  index:
+    ports: !reset []
+
+  relational_db:
+    ports: !reset []
+
+  cache:
+    ports: !reset []
+
+  minio:
+    ports: !reset []

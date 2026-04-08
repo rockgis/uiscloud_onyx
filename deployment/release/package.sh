@@ -3,19 +3,17 @@
 # UISCloud 릴리즈 패키지 생성 스크립트
 #
 # deployment/ 하위의 모든 배포 관련 파일을 모아 배포 패키지(tarball)를 생성합니다.
-# 생성된 패키지를 폐쇄망 서버로 전송하여 압축 해제 후 바로 배포할 수 있습니다.
-#
-# 사전 준비:
-#   이미지 파일(images/*.tar)은 save-images.sh로 별도 저장한 뒤
-#   패키지에 포함시키거나 tarball 생성 후 수동으로 추가합니다.
 #
 # 사용법:
-#   ./package.sh [버전]              # 패키지만 생성
-#   ./package.sh v1.2.0              # 버전 지정
-#   ./package.sh --with-images main  # 이미지 저장 후 패키지 생성 (인터넷 필요)
+#   ./package.sh [버전]                      # 패키지만 생성 (이미지 별도 추가)
+#   ./package.sh v1.2.0                      # 버전 지정
+#   ./package.sh --with-images main          # 이미지 저장 후 패키지 생성 (amd64)
+#   ./package.sh --build-on-server           # 서버 직접 빌드 패키지 (소스코드 포함)
+#   ./package.sh --build-on-server v1.2.0    # 버전 지정 + 서버 빌드 패키지
 #
 # 출력:
-#   deployment/release/dist/uiscloud-onyx.{VERSION}.tar.gz
+#   deployment/release/dist/uiscloud-onyx.{VERSION}.tar.gz          # 일반 패키지
+#   deployment/release/dist/uiscloud-onyx.{VERSION}-build.tar.gz    # 빌드 패키지
 # =============================================================================
 set -euo pipefail
 
@@ -25,6 +23,7 @@ REPO_ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"
 
 # ── 버전 결정 ─────────────────────────────────────────────────────────────────
 WITH_IMAGES=false
+BUILD_ON_SERVER=false
 IMAGE_TAG="main"
 
 VERSION=""
@@ -34,6 +33,9 @@ while [[ $# -gt 0 ]]; do
       WITH_IMAGES=true
       IMAGE_TAG="${2:-main}"
       shift; [[ $# -gt 0 ]] && shift || true
+      ;;
+    --build-on-server)
+      BUILD_ON_SERVER=true
       ;;
     -*)
       echo "알 수 없는 옵션: $1"; exit 1 ;;
@@ -46,7 +48,12 @@ if [ -z "$VERSION" ]; then
   VERSION="$(cd "$REPO_ROOT" && git describe --tags --abbrev=0 2>/dev/null || echo 'dev')"
 fi
 
-PKG_NAME="uiscloud-onyx.${VERSION}"
+# 빌드 패키지는 별도 이름 사용
+if [ "$BUILD_ON_SERVER" = true ]; then
+  PKG_NAME="uiscloud-onyx.${VERSION}-build"
+else
+  PKG_NAME="uiscloud-onyx.${VERSION}"
+fi
 DIST_DIR="$RELEASE_DIR/dist"
 PKG_DIR="$DIST_DIR/$PKG_NAME"
 
@@ -65,7 +72,9 @@ prepare_dirs() {
   log "패키지 디렉터리 준비: $PKG_DIR"
   rm -rf "$PKG_DIR"
   mkdir -p "$PKG_DIR/data/nginx"
-  mkdir -p "$PKG_DIR/images"
+  if [ "$BUILD_ON_SERVER" = false ]; then
+    mkdir -p "$PKG_DIR/images"
+  fi
 }
 
 # ── Docker Compose 파일 복사 ──────────────────────────────────────────────────
@@ -73,10 +82,9 @@ copy_compose_files() {
   log "Docker Compose 파일 복사..."
 
   local src="$DEPLOY_DIR/docker_compose"
-  cp "$src/docker-compose.prod.yml"      "$PKG_DIR/"
-  cp "$src/docker-compose.uiscloud.yml"  "$PKG_DIR/"
-  cp "$src/docker-compose.airgap.yml"    "$PKG_DIR/"
-  cp "$src/docker-compose.arm64.yml"     "$PKG_DIR/"
+  cp "$src/docker-compose.prod.yml"   "$PKG_DIR/"
+  cp "$src/docker-compose.airgap.yml" "$PKG_DIR/"
+  cp "$src/docker-compose.arm64.yml"  "$PKG_DIR/"
   cp "$RELEASE_DIR/docker-compose.release.yml" "$PKG_DIR/"
 
   # 패키지 전용 교정 (레포 구조와 다른 부분 직접 수정)
@@ -86,7 +94,17 @@ copy_compose_files() {
   perl -i -pe 's|"80:80"|"\${SERVICE_PORT:-8082}:80"|' "$PKG_DIR/docker-compose.prod.yml"
   perl -i -ne 'print unless /^\s+- "443:443"/' "$PKG_DIR/docker-compose.prod.yml"
   info "  ✅ docker-compose.prod.yml (경로·포트 교정)"
-  info "  ✅ docker-compose.uiscloud.yml"
+
+  if [ "$BUILD_ON_SERVER" = true ]; then
+    # 서버 빌드 모드: build-local.yml 사용 (uiscloud.yml 불필요)
+    cp "$src/docker-compose.build-local.yml" "$PKG_DIR/"
+    info "  ✅ docker-compose.build-local.yml"
+  else
+    # 일반 모드: uiscloud.yml 사용 (pre-built 이미지)
+    cp "$src/docker-compose.uiscloud.yml" "$PKG_DIR/"
+    info "  ✅ docker-compose.uiscloud.yml"
+  fi
+
   info "  ✅ docker-compose.airgap.yml"
   info "  ✅ docker-compose.arm64.yml"
   info "  ✅ docker-compose.release.yml"
@@ -119,21 +137,59 @@ copy_scripts() {
 
   local src="$DEPLOY_DIR/scripts"
 
-  cp "$src/deploy.sh"        "$PKG_DIR/"
-  cp "$src/load-images.sh"   "$PKG_DIR/"
-  cp "$src/save-images.sh"   "$PKG_DIR/"
-  cp "$src/server-setup.sh"  "$PKG_DIR/"
-  cp "$src/start.sh"         "$PKG_DIR/"
-  cp "$src/stop.sh"          "$PKG_DIR/"
+  cp "$src/deploy.sh"       "$PKG_DIR/"
+  cp "$src/server-setup.sh" "$PKG_DIR/"
+  cp "$src/start.sh"        "$PKG_DIR/"
+  cp "$src/stop.sh"         "$PKG_DIR/"
+
+  if [ "$BUILD_ON_SERVER" = true ]; then
+    cp "$src/build.sh" "$PKG_DIR/"
+    info "  ✅ build.sh"
+  else
+    cp "$src/load-images.sh" "$PKG_DIR/"
+    cp "$src/save-images.sh" "$PKG_DIR/"
+    info "  ✅ load-images.sh"
+    info "  ✅ save-images.sh"
+  fi
 
   chmod +x "$PKG_DIR"/*.sh
 
   info "  ✅ deploy.sh"
-  info "  ✅ load-images.sh"
-  info "  ✅ save-images.sh"
   info "  ✅ server-setup.sh"
   info "  ✅ start.sh"
   info "  ✅ stop.sh"
+}
+
+# ── 소스코드 복사 (서버 빌드 모드 전용) ──────────────────────────────────────
+copy_sources() {
+  if [ "$BUILD_ON_SERVER" = false ]; then return; fi
+
+  log "소스코드 복사 중 (서버 빌드용)..."
+
+  # backend 복사 (빌드 불필요 파일 제외)
+  rsync -a --quiet \
+    --exclude='.venv/' \
+    --exclude='__pycache__/' \
+    --exclude='*.pyc' \
+    --exclude='.pytest_cache/' \
+    --exclude='log/' \
+    --exclude='logs/' \
+    --exclude='.mypy_cache/' \
+    "$REPO_ROOT/backend/" "$PKG_DIR/backend/"
+
+  # web 복사 (빌드 불필요 파일 제외)
+  rsync -a --quiet \
+    --exclude='node_modules/' \
+    --exclude='.next/' \
+    --exclude='out/' \
+    --exclude='.turbo/' \
+    "$REPO_ROOT/web/" "$PKG_DIR/web/"
+
+  local backend_size web_size
+  backend_size=$(du -sh "$PKG_DIR/backend" | cut -f1)
+  web_size=$(du -sh "$PKG_DIR/web" | cut -f1)
+  info "  ✅ backend/ (${backend_size})"
+  info "  ✅ web/ (${web_size})"
 }
 
 # ── 환경변수 템플릿 복사 ──────────────────────────────────────────────────────
@@ -143,25 +199,35 @@ copy_env_template() {
   cp "$DEPLOY_DIR/docker_compose/.env.uiscloud.example" "$PKG_DIR/.env.example"
 
   # 이미지 태그 결정:
+  #   --build-on-server → local (서버에서 직접 빌드)
   #   --with-images 사용 시 → 실제 저장된 이미지 태그(IMAGE_TAG) 사용
   #   릴리즈 버전만 지정 시 → 버전 태그(v1.x.x) 사용 (레지스트리에서 pull)
   #   그 외 → latest 유지
   local effective_tag
-  if [ "$WITH_IMAGES" = true ]; then
-    effective_tag="$IMAGE_TAG"
-  elif [[ "$VERSION" =~ ^v[0-9] ]]; then
-    effective_tag="$VERSION"
+  if [ "$BUILD_ON_SERVER" = true ]; then
+    effective_tag="local"
+    # build-on-server 모드: uiscloud/ 네임스페이스의 로컬 이미지 사용
+    perl -i -pe "s|ghcr.io/rockgis/uiscloud_onyx/web-server:[^\s]*|uiscloud/web-server:local|g" "$PKG_DIR/.env.example"
+    perl -i -pe "s|ghcr.io/rockgis/uiscloud_onyx/onyx-backend:[^\s]*|uiscloud/onyx-backend:local|g" "$PKG_DIR/.env.example"
+    perl -i -pe "s|ghcr.io/rockgis/uiscloud_onyx/onyx-model-server:[^\s]*|uiscloud/onyx-model-server:local|g" "$PKG_DIR/.env.example"
   else
-    effective_tag="latest"
+    if [ "$WITH_IMAGES" = true ]; then
+      effective_tag="$IMAGE_TAG"
+    elif [[ "$VERSION" =~ ^v[0-9] ]]; then
+      effective_tag="$VERSION"
+    else
+      effective_tag="latest"
+    fi
+    perl -i -pe "s|web-server:latest|web-server:${effective_tag}|g"              "$PKG_DIR/.env.example"
+    perl -i -pe "s|onyx-backend:latest|onyx-backend:${effective_tag}|g"          "$PKG_DIR/.env.example"
+    perl -i -pe "s|onyx-model-server:latest|onyx-model-server:${effective_tag}|g" "$PKG_DIR/.env.example"
   fi
-
-  perl -i -pe "s|web-server:latest|web-server:${effective_tag}|g"              "$PKG_DIR/.env.example"
-  perl -i -pe "s|onyx-backend:latest|onyx-backend:${effective_tag}|g"          "$PKG_DIR/.env.example"
-  perl -i -pe "s|onyx-model-server:latest|onyx-model-server:${effective_tag}|g" "$PKG_DIR/.env.example"
   info "  ✅ .env.example (이미지 태그: ${effective_tag})"
 
-  # images 디렉터리 placeholder
-  touch "$PKG_DIR/images/.gitkeep"
+  # images 디렉터리 placeholder (빌드 모드에서는 불필요)
+  if [ "$BUILD_ON_SERVER" = false ]; then
+    touch "$PKG_DIR/images/.gitkeep"
+  fi
 }
 
 # ── 이미지 복사/저장 (선택) ───────────────────────────────────────────────────
@@ -198,10 +264,11 @@ create_tarball() {
   local tarball="${DIST_DIR}/${PKG_NAME}.tar.gz"
 
   cd "$DIST_DIR"
-  # images/*.tar 는 크기가 매우 크므로 기본 제외, --with-images 시 포함
   if [ "$WITH_IMAGES" = true ]; then
+    # images/*.tar 포함
     tar czf "${PKG_NAME}.tar.gz" "${PKG_NAME}/"
   else
+    # images/*.tar 제외 (build-on-server 모드에서는 images/ 자체가 없음)
     tar czf "${PKG_NAME}.tar.gz" \
       --exclude="${PKG_NAME}/images/*.tar" \
       "${PKG_NAME}/"
@@ -216,18 +283,32 @@ create_tarball() {
 print_summary() {
   echo ""
   log "═══════════════════════════════════════════════════"
-  log " ✅ 릴리즈 패키지 생성 완료"
+  log " ✅ 패키지 생성 완료"
   log "═══════════════════════════════════════════════════"
   echo ""
   info "버전:    $VERSION"
   info "경로:    $DIST_DIR/${PKG_NAME}.tar.gz"
   info "포트:    8082 (HTTP)"
+  [ "$BUILD_ON_SERVER" = true ] && info "유형:    서버 빌드 패키지 (소스코드 포함)"
   echo ""
-  echo "📦 패키지 내용:"
-  tar tzf "$DIST_DIR/${PKG_NAME}.tar.gz" | sed 's/^/  /'
+  echo "📦 패키지 내용 (일부):"
+  tar tzf "$DIST_DIR/${PKG_NAME}.tar.gz" \
+    | grep -v "/$" \
+    | grep -v "/backend/\|/web/" \
+    | sed 's/^/  /'
   echo ""
 
-  if [ "$WITH_IMAGES" = false ]; then
+  if [ "$BUILD_ON_SERVER" = true ]; then
+    echo "━━━ 서버 빌드 & 배포 방법 ──────────────────────────────"
+    echo ""
+    echo "  # 서버에서"
+    echo "  tar xzf ${PKG_NAME}.tar.gz && cd ${PKG_NAME}"
+    echo "  bash server-setup.sh          # 초기 설정 (Docker 설치 등)"
+    echo "  bash build.sh                 # 이미지 빌드 (인터넷 필요, 수 분 소요)"
+    echo "  cp .env.example .env && nano .env  # 환경변수 편집"
+    echo "  bash deploy.sh                # 배포 (http://서버IP:8082)"
+    echo ""
+  elif [ "$WITH_IMAGES" = false ]; then
     echo "━━━ 이미지 추가 방법 (폐쇄망 배포 시) ─────────────────"
     echo ""
     echo "  # 1. 패키지 압축 해제 후 이미지 저장"
@@ -241,7 +322,7 @@ print_summary() {
     echo ""
     echo "━━━ 서버 배포 방법 ─────────────────────────────────────"
     echo ""
-    echo "  # 폐쇄망 서버에서"
+    echo "  # 서버에서"
     echo "  tar xzf ${PKG_NAME}.tar.gz && cd ${PKG_NAME}"
     echo "  bash server-setup.sh          # 초기 설정"
     echo "  nano .env                     # 환경변수 편집"
@@ -253,10 +334,14 @@ print_summary() {
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 main() {
   echo ""
-  log "📦 UISCloud 릴리즈 패키지 생성 시작"
-  info "버전:       $VERSION"
-  info "이미지 포함: $WITH_IMAGES"
-  [ "$WITH_IMAGES" = true ] && info "이미지 태그: $IMAGE_TAG"
+  log "📦 UISCloud 패키지 생성 시작"
+  info "버전:         $VERSION"
+  if [ "$BUILD_ON_SERVER" = true ]; then
+    info "유형:         서버 빌드 패키지 (소스코드 포함)"
+  else
+    info "이미지 포함:  $WITH_IMAGES"
+    [ "$WITH_IMAGES" = true ] && info "이미지 태그:  $IMAGE_TAG"
+  fi
   echo ""
 
   mkdir -p "$DIST_DIR"
@@ -266,7 +351,10 @@ main() {
   copy_nginx_configs
   copy_scripts
   copy_env_template
-  save_images
+  copy_sources
+  if [ "$BUILD_ON_SERVER" = false ]; then
+    save_images
+  fi
   create_tarball
   print_summary
 }

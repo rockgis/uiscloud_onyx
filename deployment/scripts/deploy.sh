@@ -32,7 +32,14 @@ else
 fi
 
 # ── Compose 파일 구성 ─────────────────────────────────────────────────────────
-COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.uiscloud.yml"
+# build-local.yml이 있으면 서버 로컬 빌드 모드 (uiscloud.yml 대신 사용)
+BUILD_LOCAL_MODE=false
+if [ -f "$COMPOSE_DIR/docker-compose.build-local.yml" ]; then
+  COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.build-local.yml"
+  BUILD_LOCAL_MODE=true
+else
+  COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.uiscloud.yml"
+fi
 
 # 폐쇄망 경로 오버라이드 파일이 있으면 자동 포함
 if [ -f "$COMPOSE_DIR/docker-compose.airgap.yml" ]; then
@@ -170,11 +177,13 @@ check_prerequisites() {
     exit 1
   fi
 
-  # arm64 서버에서 QEMU 미설정 경고
+  # arm64 서버에서 QEMU 확인 (로컬 빌드 모드는 QEMU 불필요)
   local arch
   arch=$(uname -m)
   if [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then
-    if [ ! -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+    if [ "$BUILD_LOCAL_MODE" = true ]; then
+      log "로컬 빌드 모드: QEMU 불필요 (네이티브 arm64 이미지 사용) ✅"
+    elif [ ! -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
       warn "⚠️  arm64 서버에서 QEMU binfmt_misc 미설정 감지"
       warn "UISCloud 이미지(linux/amd64)가 실행되지 않을 수 있습니다."
       warn "먼저 server-setup.sh 를 실행하거나 다음 명령을 수동으로 실행하세요:"
@@ -430,11 +439,12 @@ main() {
 
   echo ""
   log "🚀 UISCloud 배포 시작"
-  [ "$DRY_RUN"      = true ] && warn "DRY-RUN 모드: 실제 배포 없음"
-  [ "$ROLLBACK"     = true ] && warn "ROLLBACK 모드"
-  [ "$AIRGAP"       = true ] && info "폐쇄망(AIR-GAP) 모드"
-  [ "$RELEASE_MODE" = true ] && info "릴리즈 모드 (포트: ${SERVICE_PORT})"
-  [ "$ARM64_MODE"   = true ] && info "ARM64 모드 (서드파티 이미지 native arm64 사용)"
+  [ "$DRY_RUN"         = true ] && warn "DRY-RUN 모드: 실제 배포 없음"
+  [ "$ROLLBACK"        = true ] && warn "ROLLBACK 모드"
+  [ "$AIRGAP"          = true ] && info "폐쇄망(AIR-GAP) 모드"
+  [ "$BUILD_LOCAL_MODE" = true ] && info "로컬 빌드 모드 (서버 직접 빌드 이미지 사용)"
+  [ "$RELEASE_MODE"    = true ] && info "릴리즈 모드 (포트: ${SERVICE_PORT})"
+  [ "$ARM64_MODE"      = true ] && info "ARM64 모드 (서드파티 이미지 native arm64 사용)"
   echo ""
 
   check_prerequisites
