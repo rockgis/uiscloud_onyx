@@ -34,6 +34,14 @@ fi
 DOMAIN="localhost"
 SKIP_FIREWALL=false
 
+# 모드 자동 감지: build-local.yml 있으면 서버 빌드 모드
+if [ -f "$SCRIPT_DIR/docker-compose.build-local.yml" ] || \
+   [ -f "$(cd "$SCRIPT_DIR/.." && pwd)/docker-compose.build-local.yml" ]; then
+  BUILD_LOCAL_MODE=true
+else
+  BUILD_LOCAL_MODE=false
+fi
+
 # ── 색상 출력 ─────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -131,6 +139,12 @@ setup_qemu() {
   fi
 
   warn "arm64 서버 감지됨"
+
+  if [ "$BUILD_LOCAL_MODE" = true ]; then
+    log "✅ 서버 빌드 모드: 소스코드로 네이티브 arm64 이미지 빌드 예정 → QEMU 불필요"
+    return
+  fi
+
   warn "UISCloud 이미지는 linux/amd64 전용입니다."
   warn "QEMU 에뮬레이션을 설정합니다..."
   echo ""
@@ -211,12 +225,21 @@ check_docker_daemon() {
 check_package() {
   step "배포 패키지 확인"
 
+  # 공통 필수 파일
   local required_files=(
     "docker-compose.prod.yml"
-    "docker-compose.uiscloud.yml"
     "docker-compose.airgap.yml"
     ".env.example"
   )
+
+  # 모드별 필수 파일
+  if [ "$BUILD_LOCAL_MODE" = true ]; then
+    required_files+=("docker-compose.build-local.yml" "build.sh")
+    info "패키지 유형: 서버 빌드 모드 (소스코드로 직접 빌드)"
+  else
+    required_files+=("docker-compose.uiscloud.yml")
+    info "패키지 유형: 이미지 배포 모드 (pre-built 이미지 사용)"
+  fi
 
   local missing=()
   for f in "${required_files[@]}"; do
@@ -233,22 +256,38 @@ check_package() {
     exit 1
   fi
 
-  if [ ! -d "$DEPLOY_DIR/images" ] || \
-     [ "$(find "$DEPLOY_DIR/images" -name '*.tar' 2>/dev/null | wc -l)" -eq 0 ]; then
-    warn "images/ 디렉터리가 없거나 .tar 파일이 없습니다."
-    warn "나중에 load-images.sh를 실행하거나 --no-pull 없이 deploy.sh를 실행하세요."
+  # 이미지 배포 모드: images/ 확인
+  if [ "$BUILD_LOCAL_MODE" = false ]; then
+    if [ ! -d "$DEPLOY_DIR/images" ] || \
+       [ "$(find "$DEPLOY_DIR/images" -name '*.tar' 2>/dev/null | wc -l)" -eq 0 ]; then
+      warn "images/ 디렉터리가 없거나 .tar 파일이 없습니다."
+      warn "나중에 load-images.sh를 실행하거나 --no-pull 없이 deploy.sh를 실행하세요."
+    else
+      local count
+      count=$(find "$DEPLOY_DIR/images" -name '*.tar' | wc -l)
+      log "이미지 파일: ${count}개"
+    fi
   else
-    local count
-    count=$(find "$DEPLOY_DIR/images" -name '*.tar' | wc -l)
-    log "이미지 파일: ${count}개"
+    # 빌드 모드: 소스코드 확인
+    local src_missing=()
+    [ ! -d "$DEPLOY_DIR/backend" ] && src_missing+=("backend/")
+    [ ! -d "$DEPLOY_DIR/web" ]     && src_missing+=("web/")
+    if [ ${#src_missing[@]} -gt 0 ]; then
+      error "소스코드 디렉터리가 없습니다: ${src_missing[*]}"
+      exit 1
+    fi
+    log "소스코드: backend/, web/ ✅"
   fi
 
   log "✅ 패키지 파일 확인 완료"
   info "배포 경로: $DEPLOY_DIR"
 }
 
-# ── Docker 이미지 로드 ────────────────────────────────────────────────────────
+# ── Docker 이미지 로드 (이미지 배포 모드 전용) ────────────────────────────────
 load_images() {
+  # 서버 빌드 모드는 이미지 로드 불필요
+  if [ "$BUILD_LOCAL_MODE" = true ]; then return; fi
+
   step "Docker 이미지 로드"
 
   local images_dir="$DEPLOY_DIR/images"
@@ -329,16 +368,10 @@ setup_env() {
 setup_permissions() {
   step "실행 권한 설정"
 
-  local scripts=(
-    "$DEPLOY_DIR/deploy.sh"
-    "$DEPLOY_DIR/load-images.sh"
-    "$DEPLOY_DIR/save-images.sh"
-    "$DEPLOY_DIR/server-setup.sh"
-  )
-
-  for s in "${scripts[@]}"; do
-    [ -f "$s" ] && chmod +x "$s"
-  done
+  # 존재하는 모든 .sh 파일에 실행 권한 부여
+  find "$DEPLOY_DIR" -maxdepth 1 -name "*.sh" -exec chmod +x {} \;
+  # data/nginx/run-nginx.sh 도 포함
+  [ -f "$DEPLOY_DIR/data/nginx/run-nginx.sh" ] && chmod +x "$DEPLOY_DIR/data/nginx/run-nginx.sh"
 
   log "✅ 실행 권한 설정 완료"
 }
@@ -373,15 +406,24 @@ print_next_steps() {
   echo ""
   echo "📋 다음 단계:"
   echo ""
-  echo "  1️⃣  환경 변수 설정 (필수):"
-  echo "       nano $DEPLOY_DIR/.env"
-  echo ""
-  echo "  2️⃣  배포 실행:"
-  echo "       bash $DEPLOY_DIR/deploy.sh"
-  echo ""
-  echo "  3️⃣  상태 확인:"
-  echo "       cd $DEPLOY_DIR"
-  echo "       docker compose -f docker-compose.prod.yml -f docker-compose.uiscloud.yml ps"
+
+  if [ "$BUILD_LOCAL_MODE" = true ]; then
+    echo "  1️⃣  환경 변수 설정 (필수):"
+    echo "       nano $DEPLOY_DIR/.env"
+    echo ""
+    echo "  2️⃣  이미지 빌드 (인터넷 필요, 수 분 소요):"
+    echo "       bash $DEPLOY_DIR/build.sh"
+    echo ""
+    echo "  3️⃣  배포 실행:"
+    echo "       bash $DEPLOY_DIR/deploy.sh"
+  else
+    echo "  1️⃣  환경 변수 설정 (필수):"
+    echo "       nano $DEPLOY_DIR/.env"
+    echo ""
+    echo "  2️⃣  배포 실행:"
+    echo "       bash $DEPLOY_DIR/deploy.sh"
+  fi
+
   echo ""
   local port
   port=$(grep '^SERVICE_PORT=' "$DEPLOY_DIR/.env" 2>/dev/null \
@@ -398,7 +440,11 @@ print_next_steps() {
 # ── 메인 실행 ─────────────────────────────────────────────────────────────────
 main() {
   echo ""
-  log "🚀 UISCloud 서버 초기 설정 시작 (폐쇄망)"
+  if [ "$BUILD_LOCAL_MODE" = true ]; then
+    log "🚀 UISCloud 서버 초기 설정 시작 (서버 빌드 모드)"
+  else
+    log "🚀 UISCloud 서버 초기 설정 시작 (폐쇄망)"
+  fi
   info "배포 경로: $DEPLOY_DIR"
   info "도메인:    $DOMAIN"
   echo ""
