@@ -79,10 +79,13 @@ copy_compose_files() {
   cp "$src/docker-compose.arm64.yml"     "$PKG_DIR/"
   cp "$RELEASE_DIR/docker-compose.release.yml" "$PKG_DIR/"
 
-  # 패키지에서는 compose 파일들이 data/ 와 같은 디렉터리에 위치하므로
-  # docker-compose.prod.yml의 ../data/ 경로를 ./data/ 로 교정
+  # 패키지 전용 교정 (레포 구조와 다른 부분 직접 수정)
+  # 1) 볼륨 경로: ../data/ → ./data/
   perl -i -pe 's|\.\./data/|./data/|g' "$PKG_DIR/docker-compose.prod.yml"
-  info "  ✅ docker-compose.prod.yml (경로 교정: ../data/ → ./data/)"
+  # 2) nginx 포트: 80:80 → SERVICE_PORT:80, 443:443 제거
+  perl -i -pe 's|"80:80"|"\${SERVICE_PORT:-8082}:80"|' "$PKG_DIR/docker-compose.prod.yml"
+  perl -i -ne 'print unless /^\s+- "443:443"/' "$PKG_DIR/docker-compose.prod.yml"
+  info "  ✅ docker-compose.prod.yml (경로·포트 교정)"
   info "  ✅ docker-compose.uiscloud.yml"
   info "  ✅ docker-compose.airgap.yml"
   info "  ✅ docker-compose.arm64.yml"
