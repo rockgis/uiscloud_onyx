@@ -36,6 +36,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --build-on-server)
       BUILD_ON_SERVER=true
+      shift
       ;;
     -*)
       echo "알 수 없는 옵션: $1"; exit 1 ;;
