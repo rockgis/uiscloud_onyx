@@ -17,13 +17,7 @@ name: onyx
 
 services:
 
-  # nginx: ../data/nginx → ./data/nginx (certbot 볼륨 제외 - 폐쇄망 HTTP 전용)
+  # nginx: ../data/nginx → ./data/nginx (폐쇄망 경로 교정)
   nginx:
     volumes: !reset
       - ./data/nginx:/etc/nginx/conf.d
-
-  # certbot: 폐쇄망 환경에서 불필요 → 즉시 종료
-  certbot:
-    entrypoint: /bin/sh -c "exit 0"
-    restart: "no"
-    volumes: !reset []
