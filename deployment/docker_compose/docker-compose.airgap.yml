@@ -3,21 +3,8 @@ name: onyx
 # =============================================================================
 # 폐쇄망(Air-Gap) 배포 오버라이드
 #
-# docker-compose.prod.yml의 ../data/ 경로를 압축 해제 위치 기준의 ./data/ 로
-# 재정의합니다. 패키지를 임의의 디렉터리에 압축 해제한 뒤 그 위치에서 바로
-# 실행할 수 있도록 경로를 교정합니다.
+# 패키지 배포 시 경로 교정은 package.sh에서 docker-compose.prod.yml의
+# ../data/ 를 ./data/ 로 직접 치환하므로, 이 파일에서는 별도 처리 불필요.
 #
-# 사용법 (deploy.sh가 자동 포함):
-#   docker compose \
-#     -f docker-compose.prod.yml \
-#     -f docker-compose.uiscloud.yml \
-#     -f docker-compose.airgap.yml \
-#     up -d
+# 이 파일은 향후 폐쇄망 전용 추가 설정을 위해 유지합니다.
 # =============================================================================
-
-services:
-
-  # nginx: ../data/nginx → ./data/nginx (폐쇄망 경로 교정)
-  nginx:
-    volumes: !reset
-      - ./data/nginx:/etc/nginx/conf.d

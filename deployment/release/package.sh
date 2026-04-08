@@ -79,7 +79,10 @@ copy_compose_files() {
   cp "$src/docker-compose.arm64.yml"     "$PKG_DIR/"
   cp "$RELEASE_DIR/docker-compose.release.yml" "$PKG_DIR/"
 
-  info "  ✅ docker-compose.prod.yml"
+  # 패키지에서는 compose 파일들이 data/ 와 같은 디렉터리에 위치하므로
+  # docker-compose.prod.yml의 ../data/ 경로를 ./data/ 로 교정
+  perl -i -pe 's|\.\./data/|./data/|g' "$PKG_DIR/docker-compose.prod.yml"
+  info "  ✅ docker-compose.prod.yml (경로 교정: ../data/ → ./data/)"
   info "  ✅ docker-compose.uiscloud.yml"
   info "  ✅ docker-compose.airgap.yml"
   info "  ✅ docker-compose.arm64.yml"
