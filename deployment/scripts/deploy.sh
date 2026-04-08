@@ -275,6 +275,13 @@ load_images() {
 
 # ── 이미지 풀 ─────────────────────────────────────────────────────────────────
 pull_images() {
+  # 로컬 빌드 모드: uiscloud/*:local 이미지는 레지스트리 없는 로컬 이미지
+  # 서드파티 이미지는 docker compose up 시 자동 pull
+  if [ "$BUILD_LOCAL_MODE" = true ]; then
+    log "로컬 빌드 모드: 이미지 풀 생략 (서드파티는 up 시 자동 pull)"
+    return
+  fi
+
   if [ "$AIRGAP" = true ]; then
     warn "폐쇄망 모드: 이미지 풀 생략"
 
