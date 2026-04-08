@@ -98,7 +98,7 @@ copy_compose_files() {
   #    Docker Compose v5가 prod.yml의 build.context(../../backend 등)를 절대경로로
   #    먼저 해석한 뒤 override가 무시되는 문제를 원천 차단
   if [ "$BUILD_ON_SERVER" = true ]; then
-    perl -i -0pe 's/\n    build:\n( {6,}[^\n]*\n)+//g' "$PKG_DIR/docker-compose.prod.yml"
+    perl -i -0pe 's/\n    build:\n( {6,}[^\n]*\n)+/\n/g' "$PKG_DIR/docker-compose.prod.yml"
     info "  ✅ docker-compose.prod.yml (경로·포트 교정 + build 섹션 제거)"
   else
     info "  ✅ docker-compose.prod.yml (경로·포트 교정)"
